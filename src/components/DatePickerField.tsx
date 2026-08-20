@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -13,6 +14,11 @@ type DatePickerFieldProps = {
 };
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DATE_PRESETS = [
+  { days: 7, label: '1 week' },
+  { days: 30, label: '1 month' },
+  { days: 90, label: '3 months' },
+] as const;
 
 export function DatePickerField({ minimumDate, onChange, value }: DatePickerFieldProps) {
   const minimum = fromIsoDate(minimumDate);
@@ -23,6 +29,10 @@ export function DatePickerField({ minimumDate, onChange, value }: DatePickerFiel
   const days = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
   const previousMonth = addMonths(visibleMonth, -1);
   const previousDisabled = previousMonth < startOfMonth(minimum);
+  const presetDates = DATE_PRESETS.map((preset) => ({
+    ...preset,
+    date: addDays(minimum, preset.days - 1),
+  }));
 
   const openCalendar = () => {
     setVisibleMonth(startOfMonth(selected ?? minimum));
@@ -51,13 +61,20 @@ export function DatePickerField({ minimumDate, onChange, value }: DatePickerFiel
       </Pressable>
 
       <Modal
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setIsOpen(false)}
         transparent
         visible={isOpen}
       >
         <View style={styles.backdrop}>
-          <View accessibilityViewIsModal style={styles.calendarCard}>
+          <Pressable
+            accessibilityLabel="Close date selector"
+            accessibilityRole="button"
+            onPress={() => setIsOpen(false)}
+            style={StyleSheet.absoluteFill}
+          />
+          <SafeAreaView accessibilityViewIsModal edges={['bottom']} style={styles.calendarCard}>
+            <View style={styles.grabber} />
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalEyebrow}>UNLOCK DATE</Text>
@@ -70,6 +87,30 @@ export function DatePickerField({ minimumDate, onChange, value }: DatePickerFiel
               >
                 <Ionicons color={colors.ink} name="close" size={21} />
               </Pressable>
+            </View>
+
+            <View style={styles.presets}>
+              {presetDates.map((preset) => {
+                const isSelected = value === toIsoDate(preset.date);
+                return (
+                  <Pressable
+                    accessibilityLabel={`Unlock in ${preset.label}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    key={preset.label}
+                    onPress={() => chooseDate(preset.date)}
+                    style={({ pressed }) => [
+                      styles.presetButton,
+                      isSelected && styles.presetSelected,
+                      pressed && styles.dayPressed,
+                    ]}
+                  >
+                    <Text style={[styles.presetText, isSelected && styles.presetSelectedText]}>
+                      {preset.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <View style={styles.monthHeader}>
@@ -109,6 +150,8 @@ export function DatePickerField({ minimumDate, onChange, value }: DatePickerFiel
                   <View key={isoDate} style={styles.dayCell}>
                     <Pressable
                       accessibilityLabel={formatLongDate(date)}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled, selected: isSelected }}
                       disabled={disabled}
                       onPress={() => chooseDate(date)}
                       style={({ pressed }) => [
@@ -134,7 +177,7 @@ export function DatePickerField({ minimumDate, onChange, value }: DatePickerFiel
               <Ionicons color={colors.primary} name="lock-closed-outline" size={17} />
               <Text style={styles.footerText}>Past dates can’t be selected.</Text>
             </View>
-          </View>
+          </SafeAreaView>
         </View>
       </Modal>
     </>
@@ -171,6 +214,12 @@ function addMonths(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1, 12);
 }
 
+function addDays(date: Date, amount: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + amount);
+  return nextDate;
+}
+
 function toIsoDate(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -203,12 +252,18 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.72 },
   fieldValue: { color: colors.ink, flex: 1, fontSize: 16, fontWeight: '600' },
   placeholder: { color: colors.placeholder, fontWeight: '400' },
-  backdrop: { alignItems: 'center', backgroundColor: 'rgba(12, 22, 17, 0.58)', flex: 1, justifyContent: 'center', padding: spacing.lg },
-  calendarCard: { backgroundColor: colors.background, borderRadius: 26, maxWidth: 390, padding: spacing.lg, width: '100%' },
+  backdrop: { alignItems: 'center', backgroundColor: 'rgba(12, 22, 17, 0.58)', flex: 1, justifyContent: 'flex-end' },
+  calendarCard: { backgroundColor: colors.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxWidth: 480, padding: spacing.lg, paddingTop: spacing.sm, width: '100%' },
+  grabber: { alignSelf: 'center', backgroundColor: '#C9C7C0', borderRadius: 999, height: 5, marginBottom: spacing.md, width: 42 },
   modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   modalEyebrow: { color: colors.primary, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   modalTitle: { color: colors.ink, fontSize: 24, fontWeight: '800', marginTop: 2 },
   closeButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 14, borderWidth: 1, height: 42, justifyContent: 'center', width: 42 },
+  presets: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  presetButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: 42, paddingHorizontal: spacing.sm },
+  presetSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  presetText: { color: colors.ink, fontSize: 12, fontWeight: '800' },
+  presetSelectedText: { color: colors.white },
   monthHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md, marginTop: spacing.lg },
   monthButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 38, justifyContent: 'center', width: 38 },
   monthButtonDisabled: { opacity: 0.28 },

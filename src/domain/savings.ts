@@ -16,6 +16,17 @@ export function calculateSafeToSpend(bankBalance: number, protectedMoney: number
   return Math.max(bankBalance - protectedMoney, 0);
 }
 
+export function calculateRemainingSafeToSpend(
+  currentSafeToSpend: number,
+  additionalProtectedAmount: number,
+) {
+  if (!Number.isFinite(additionalProtectedAmount) || additionalProtectedAmount <= 0) {
+    return currentSafeToSpend;
+  }
+
+  return calculateSafeToSpend(currentSafeToSpend, additionalProtectedAmount);
+}
+
 export function getSavingsSnapshot(bankBalance: number, pigs: Pig[]): SavingsSnapshot {
   const protectedMoney = calculateProtectedMoney(pigs);
   return {
