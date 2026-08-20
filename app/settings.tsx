@@ -73,6 +73,7 @@ function SettingRow({ icon, label, onValueChange, value }: SettingRowProps) {
       </View>
       <Text style={styles.settingLabel}>{label}</Text>
       <Switch
+        accessibilityLabel={label}
         onValueChange={handleValueChange}
         thumbColor={colors.white}
         trackColor={{ false: colors.border, true: colors.primary }}

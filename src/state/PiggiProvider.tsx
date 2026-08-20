@@ -12,13 +12,22 @@ import {
 import { CreatePigInput, Pig } from '@/models/pig';
 import { loadStoredPigs, saveStoredPigs } from '@/services/pigStorage';
 
+export type ReleaseReason = 'broken' | 'completed';
+
+export type ReleaseNotice = {
+  pigId: string;
+  reason: ReleaseReason;
+};
+
 type PiggiContextValue = {
   addPig: (input: CreatePigInput) => CreatePigResult;
   bankBalance: number;
   breakPig: (pigId: string) => void;
   clearCreationNotice: () => void;
+  clearReleaseNotice: () => void;
   getPigById: (id: string | undefined) => Pig | undefined;
   lastCreatedPigId: string | null;
+  releaseNotice: ReleaseNotice | null;
   isHydrated: boolean;
   pigs: Pig[];
   removePig: (pigId: string) => void;
@@ -30,6 +39,7 @@ export function PiggiProvider({ children }: PropsWithChildren) {
   const [pigs, setPigs] = useState<Pig[]>(MOCK_PIGS);
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastCreatedPigId, setLastCreatedPigId] = useState<string | null>(null);
+  const [releaseNotice, setReleaseNotice] = useState<ReleaseNotice | null>(null);
   const pigsRef = useRef(pigs);
 
   const commitPigs = useCallback((nextPigs: Pig[]) => {
@@ -53,7 +63,13 @@ export function PiggiProvider({ children }: PropsWithChildren) {
         pigsRef.current = currentPigs;
         setPigs(currentPigs);
         setIsHydrated(true);
-        if (currentPigs !== sourcePigs) await saveStoredPigs(currentPigs);
+        if (currentPigs !== sourcePigs) {
+          const completedPig = findNewlyCompletedPig(sourcePigs, currentPigs);
+          if (completedPig) {
+            setReleaseNotice({ pigId: completedPig.id, reason: 'completed' });
+          }
+          await saveStoredPigs(currentPigs);
+        }
       } catch (error) {
         console.warn('Piggi could not load stored Pigs.', error);
         if (isMounted) setIsHydrated(true);
@@ -70,10 +86,15 @@ export function PiggiProvider({ children }: PropsWithChildren) {
     if (!isHydrated) return undefined;
 
     const completeDuePigs = () => {
-      const nextPigs = completeMaturePigs(pigsRef.current);
-      if (nextPigs !== pigsRef.current) {
+      const previousPigs = pigsRef.current;
+      const nextPigs = completeMaturePigs(previousPigs);
+      if (nextPigs !== previousPigs) {
+        const completedPig = findNewlyCompletedPig(previousPigs, nextPigs);
         commitPigs(nextPigs);
         setLastCreatedPigId(null);
+        if (completedPig) {
+          setReleaseNotice({ pigId: completedPig.id, reason: 'completed' });
+        }
       }
     };
 
@@ -94,23 +115,28 @@ export function PiggiProvider({ children }: PropsWithChildren) {
       const nextPigs = [...pigsRef.current, result.pig];
       commitPigs(nextPigs);
       setLastCreatedPigId(result.pig.id);
+      setReleaseNotice(null);
     }
     return result;
   }, [commitPigs]);
 
   const breakPig = useCallback((pigId: string) => {
+    const pigToBreak = pigsRef.current.find((pig) => pig.id === pigId && pig.status === 'locked');
     const nextPigs = breakPigById(pigsRef.current, pigId);
     commitPigs(nextPigs);
     setLastCreatedPigId(null);
+    if (pigToBreak) setReleaseNotice({ pigId, reason: 'broken' });
   }, [commitPigs]);
 
   const removePig = useCallback((pigId: string) => {
     const nextPigs = removePigById(pigsRef.current, pigId);
     commitPigs(nextPigs);
     setLastCreatedPigId((current) => (current === pigId ? null : current));
+    setReleaseNotice((current) => (current?.pigId === pigId ? null : current));
   }, [commitPigs]);
 
   const clearCreationNotice = useCallback(() => setLastCreatedPigId(null), []);
+  const clearReleaseNotice = useCallback(() => setReleaseNotice(null), []);
 
   const getPigById = useCallback(
     (id: string | undefined) => pigs.find((pig) => pig.id === id),
@@ -124,16 +150,25 @@ export function PiggiProvider({ children }: PropsWithChildren) {
         bankBalance: MOCK_BANK_BALANCE,
         breakPig,
         clearCreationNotice,
+        clearReleaseNotice,
         getPigById,
         isHydrated,
         lastCreatedPigId,
         pigs,
+        releaseNotice,
         removePig,
       }}
     >
       {children}
     </PiggiContext.Provider>
   );
+}
+
+function findNewlyCompletedPig(previousPigs: Pig[], nextPigs: Pig[]) {
+  return nextPigs.find((nextPig) => (
+    nextPig.status === 'completed' &&
+    previousPigs.find((previousPig) => previousPig.id === nextPig.id)?.status === 'locked'
+  ));
 }
 
 export function usePiggi() {

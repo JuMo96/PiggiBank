@@ -7,6 +7,7 @@ import { CreationSuccessBanner } from '@/components/CreationSuccessBanner';
 import { PigCard } from '@/components/PigCard';
 import { PigHistoryCard } from '@/components/PigHistoryCard';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { ReleaseNoticeBanner } from '@/components/ReleaseNoticeBanner';
 import { Screen } from '@/components/Screen';
 import { useSavingsOverview } from '@/hooks/useSavingsOverview';
 import { getHomeHeaderCopy } from '@/presentation/home';
@@ -16,8 +17,15 @@ import { spacing } from '@/theme/spacing';
 
 export default function HomeScreen() {
   const { activePigs, bankBalance, pastPigs, protectedMoney, safeToSpend } = useSavingsOverview();
-  const { clearCreationNotice, isHydrated, lastCreatedPigId } = usePiggi();
+  const {
+    clearCreationNotice,
+    clearReleaseNotice,
+    isHydrated,
+    lastCreatedPigId,
+    releaseNotice,
+  } = usePiggi();
   const createdPig = activePigs.find((pig) => pig.id === lastCreatedPigId);
+  const releasedPig = pastPigs.find((pig) => pig.id === releaseNotice?.pigId);
   const headerCopy = getHomeHeaderCopy();
 
   if (!isHydrated) {
@@ -61,6 +69,18 @@ export default function HomeScreen() {
               router.push({ pathname: '/pig/[id]', params: { id: createdPig.id } });
           }}
           pig={createdPig}
+        />
+      ) : null}
+
+      {releasedPig && releaseNotice ? (
+        <ReleaseNoticeBanner
+          onDismiss={clearReleaseNotice}
+          onView={() => {
+            clearReleaseNotice();
+            router.push({ pathname: '/pig/[id]', params: { id: releasedPig.id } });
+          }}
+          pig={releasedPig}
+          reason={releaseNotice.reason}
         />
       ) : null}
 

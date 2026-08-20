@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { PropsWithChildren, useEffect, useRef } from 'react';
-import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { formatCurrency } from '@/domain/savings';
 import { Pig } from '@/models/pig';
 import { colors } from '@/theme/colors';
@@ -14,7 +14,7 @@ type CreationSuccessBannerProps = {
 
 export function CreationSuccessBanner({ onView, pig }: CreationSuccessBannerProps) {
   return (
-    <Entrance>
+    <AnimatedEntrance>
       <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.banner}>
         <View style={styles.icon}>
           <Ionicons color={colors.primary} name="checkmark" size={18} />
@@ -34,51 +34,7 @@ export function CreationSuccessBanner({ onView, pig }: CreationSuccessBannerProp
           <Ionicons color={colors.primary} name="chevron-forward" size={15} />
         </Pressable>
       </View>
-    </Entrance>
-  );
-}
-
-function Entrance({ children }: PropsWithChildren) {
-  const progress = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    let isMounted = true;
-    let animation: Animated.CompositeAnimation | undefined;
-
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
-      if (!isMounted) return;
-      if (reduceMotion) {
-        progress.setValue(1);
-        return;
-      }
-
-      animation = Animated.spring(progress, {
-        damping: 18,
-        mass: 0.8,
-        stiffness: 170,
-        toValue: 1,
-        useNativeDriver: true,
-      });
-      animation.start();
-    });
-
-    return () => {
-      isMounted = false;
-      animation?.stop();
-    };
-  }, [progress]);
-
-  return (
-    <Animated.View
-      style={{
-        opacity: progress,
-        transform: [{
-          translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }),
-        }],
-      }}
-    >
-      {children}
-    </Animated.View>
+    </AnimatedEntrance>
   );
 }
 
