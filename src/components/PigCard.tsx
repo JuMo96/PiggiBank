@@ -13,7 +13,13 @@ export function PigCard({ onPress, pig }: PigCardProps) {
   const timeline = getPigTimeline(pig);
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+    <Pressable
+      accessibilityHint="Opens progress and Pig actions"
+      accessibilityLabel={`${pig.name}, ${formatCurrency(pig.protectedAmount)} protected, ${timeline.daysRemaining} days remaining`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
       <View style={styles.spotlight} />
       <View style={[styles.coin, styles.coinLeft]} />
       <View style={[styles.coin, styles.coinRight]} />

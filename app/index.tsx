@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { formatCurrency } from '@/domain/savings';
 import { useSavingsOverview } from '@/hooks/useSavingsOverview';
+import { getHomeHeaderCopy } from '@/presentation/home';
 import { usePiggi } from '@/state/PiggiProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -17,6 +18,7 @@ export default function HomeScreen() {
   const { activePigs, bankBalance, pastPigs, protectedMoney, safeToSpend } = useSavingsOverview();
   const { clearCreationNotice, isHydrated, lastCreatedPigId } = usePiggi();
   const createdPig = activePigs.find((pig) => pig.id === lastCreatedPigId);
+  const headerCopy = getHomeHeaderCopy();
 
   if (!isHydrated) {
     return (
@@ -33,8 +35,8 @@ export default function HomeScreen() {
     <Screen>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>THURSDAY, AUG 20</Text>
-          <Text style={styles.title}>Good morning</Text>
+          <Text style={styles.eyebrow}>{headerCopy.dateLabel}</Text>
+          <Text style={styles.title}>{headerCopy.greeting}</Text>
         </View>
         <Pressable
           accessibilityLabel="Open settings"
@@ -53,7 +55,7 @@ export default function HomeScreen() {
       />
 
       {createdPig ? (
-        <View style={styles.successBanner}>
+        <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.successBanner}>
           <View style={styles.successIcon}>
             <Ionicons color={colors.primary} name="checkmark" size={18} />
           </View>
@@ -63,8 +65,18 @@ export default function HomeScreen() {
               {formatCurrency(createdPig.protectedAmount)} is now protected.
             </Text>
           </View>
-          <Pressable accessibilityLabel="Dismiss" onPress={clearCreationNotice}>
-            <Ionicons color={colors.muted} name="close" size={19} />
+          <Pressable
+            accessibilityHint="Opens the Pig you just created"
+            accessibilityLabel={`View ${createdPig.name}`}
+            accessibilityRole="button"
+            onPress={() => {
+              clearCreationNotice();
+              router.push({ pathname: '/pig/[id]', params: { id: createdPig.id } });
+            }}
+            style={({ pressed }) => [styles.viewButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.viewButtonText}>View</Text>
+            <Ionicons color={colors.primary} name="chevron-forward" size={15} />
           </Pressable>
         </View>
       ) : null}
@@ -172,6 +184,8 @@ const styles = StyleSheet.create({
   successCopy: { flex: 1 },
   successTitle: { color: colors.ink, fontSize: 14, fontWeight: '800' },
   successText: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  viewButton: { alignItems: 'center', flexDirection: 'row', gap: 2, minHeight: 44, paddingLeft: spacing.sm },
+  viewButtonText: { color: colors.primary, fontSize: 13, fontWeight: '800' },
   limitNote: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.sm },
   limitText: { color: colors.muted, flex: 1, fontSize: 12, lineHeight: 18 },
   emptyState: { alignItems: 'center', backgroundColor: '#ECE6D9', borderColor: '#DED4C1', borderRadius: 28, borderWidth: 1, minHeight: 320, overflow: 'hidden', paddingTop: spacing.xl },

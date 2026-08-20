@@ -45,7 +45,7 @@ export function createPig(
   }
 
   if (!isValidIsoDate(input.unlockDate)) {
-    return { error: 'Enter a valid unlock date in YYYY-MM-DD format.', ok: false };
+    return { error: 'Choose an unlock date from the calendar.', ok: false };
   }
 
   if (input.unlockDate <= today) {
