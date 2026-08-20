@@ -9,6 +9,7 @@ import { Screen } from '@/components/Screen';
 import { formatCurrency } from '@/domain/savings';
 import { useCreatePigForm } from '@/hooks/useCreatePigForm';
 import { useSavingsOverview } from '@/hooks/useSavingsOverview';
+import { notifySuccess } from '@/services/feedback';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -30,6 +31,7 @@ export default function CreatePigScreen() {
       setIsSubmitting(false);
       return;
     }
+    notifySuccess();
     router.dismissTo('/');
   };
 

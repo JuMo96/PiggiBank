@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
+import { notifySelection } from '@/services/feedback';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -60,6 +61,11 @@ type SettingRowProps = {
 };
 
 function SettingRow({ icon, label, onValueChange, value }: SettingRowProps) {
+  const handleValueChange = (nextValue: boolean) => {
+    notifySelection();
+    onValueChange(nextValue);
+  };
+
   return (
     <View style={styles.settingRow}>
       <View style={styles.settingIcon}>
@@ -67,7 +73,7 @@ function SettingRow({ icon, label, onValueChange, value }: SettingRowProps) {
       </View>
       <Text style={styles.settingLabel}>{label}</Text>
       <Switch
-        onValueChange={onValueChange}
+        onValueChange={handleValueChange}
         thumbColor={colors.white}
         trackColor={{ false: colors.border, true: colors.primary }}
         value={value}

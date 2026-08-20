@@ -7,6 +7,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { formatPigDate, getPigStatusLabel, getPigTimeline } from '@/domain/pigs';
 import { formatCurrency } from '@/domain/savings';
 import { usePiggi } from '@/state/PiggiProvider';
+import { notifyWarning } from '@/services/feedback';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -39,6 +40,7 @@ export default function PigDetailsScreen() {
         { style: 'cancel', text: 'Keep It Protected' },
         {
           onPress: () => {
+            notifyWarning();
             breakPig(pig.id);
             router.dismissTo('/');
           },
@@ -57,6 +59,7 @@ export default function PigDetailsScreen() {
         { style: 'cancel', text: 'Cancel' },
         {
           onPress: () => {
+            notifyWarning();
             removePig(pig.id);
             router.dismissTo('/');
           },

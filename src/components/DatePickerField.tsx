@@ -4,6 +4,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+import { notifySelection } from '@/services/feedback';
 
 type DatePickerFieldProps = {
   minimumDate: string;
@@ -29,6 +30,7 @@ export function DatePickerField({ minimumDate, onChange, value }: DatePickerFiel
   };
 
   const chooseDate = (date: Date) => {
+    notifySelection();
     onChange(toIsoDate(date));
     setIsOpen(false);
   };

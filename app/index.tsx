@@ -3,11 +3,11 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BalanceOverview } from '@/components/BalanceOverview';
+import { CreationSuccessBanner } from '@/components/CreationSuccessBanner';
 import { PigCard } from '@/components/PigCard';
 import { PigHistoryCard } from '@/components/PigHistoryCard';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
-import { formatCurrency } from '@/domain/savings';
 import { useSavingsOverview } from '@/hooks/useSavingsOverview';
 import { getHomeHeaderCopy } from '@/presentation/home';
 import { usePiggi } from '@/state/PiggiProvider';
@@ -55,30 +55,13 @@ export default function HomeScreen() {
       />
 
       {createdPig ? (
-        <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.successBanner}>
-          <View style={styles.successIcon}>
-            <Ionicons color={colors.primary} name="checkmark" size={18} />
-          </View>
-          <View style={styles.successCopy}>
-            <Text style={styles.successTitle}>Your Pig is on its pedestal</Text>
-            <Text style={styles.successText}>
-              {formatCurrency(createdPig.protectedAmount)} is now protected.
-            </Text>
-          </View>
-          <Pressable
-            accessibilityHint="Opens the Pig you just created"
-            accessibilityLabel={`View ${createdPig.name}`}
-            accessibilityRole="button"
-            onPress={() => {
+        <CreationSuccessBanner
+          onView={() => {
               clearCreationNotice();
               router.push({ pathname: '/pig/[id]', params: { id: createdPig.id } });
-            }}
-            style={({ pressed }) => [styles.viewButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.viewButtonText}>View</Text>
-            <Ionicons color={colors.primary} name="chevron-forward" size={15} />
-          </Pressable>
-        </View>
+          }}
+          pig={createdPig}
+        />
       ) : null}
 
       <View style={styles.sectionHeader}>
@@ -179,13 +162,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.ink, fontSize: 19, fontWeight: '800' },
   count: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   list: { gap: spacing.md, marginBottom: spacing.lg },
-  successBanner: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: '#C4DED2', borderRadius: 17, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
-  successIcon: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 14, height: 36, justifyContent: 'center', width: 36 },
-  successCopy: { flex: 1 },
-  successTitle: { color: colors.ink, fontSize: 14, fontWeight: '800' },
-  successText: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  viewButton: { alignItems: 'center', flexDirection: 'row', gap: 2, minHeight: 44, paddingLeft: spacing.sm },
-  viewButtonText: { color: colors.primary, fontSize: 13, fontWeight: '800' },
   limitNote: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.sm },
   limitText: { color: colors.muted, flex: 1, fontSize: 12, lineHeight: 18 },
   emptyState: { alignItems: 'center', backgroundColor: '#ECE6D9', borderColor: '#DED4C1', borderRadius: 28, borderWidth: 1, minHeight: 320, overflow: 'hidden', paddingTop: spacing.xl },
