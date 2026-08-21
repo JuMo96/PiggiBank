@@ -1,4 +1,4 @@
-import { getPigTimeline } from '@/domain/pigs';
+import { getPigProgression } from '@/domain/pigProgress';
 import { formatCurrency } from '@/domain/savings';
 import { Pig } from '@/models/pig';
 
@@ -25,11 +25,13 @@ export function getHomeHeaderCopy(now = new Date()): HomeHeaderCopy {
   };
 }
 
-export function getHomeSavingsSummary(activePigs: Pig[]) {
+export function getHomeSavingsSummary(activePigs: Pig[], currentDate = new Date()) {
   const pig = activePigs[0];
   if (!pig) return 'Your next saving win starts with one small promise.';
 
-  const { daysRemaining } = getPigTimeline(pig);
-  const dayLabel = daysRemaining === 1 ? 'day' : 'days';
-  return `You’re protecting ${formatCurrency(pig.protectedAmount)} for ${pig.name}. ${daysRemaining} ${dayLabel} until it opens.`;
+  const progression = getPigProgression(pig, currentDate);
+  const countdown = /[.!?]$/.test(progression.countdown)
+    ? progression.countdown
+    : `${progression.countdown}.`;
+  return `You’re protecting ${formatCurrency(pig.protectedAmount)} for ${pig.name}. ${countdown}`;
 }

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { PigShowcase } from '@/components/PigShowcase';
+import { PigAvatar } from '@/components/PigAvatar';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { colors } from '@/theme/colors';
 import { fontSizes, radii, spacing } from '@/theme/spacing';
@@ -12,7 +12,7 @@ type EmptyPigsStateProps = {
 export function EmptyPigsState({ onCreate }: EmptyPigsStateProps) {
   return (
     <View style={styles.card}>
-      <PigShowcase accessibilityLabel="A cheerful Piggi waiting for a savings goal" size="compact" />
+      <PigAvatar accessibilityLabel="A cheerful Piggi waiting for a savings goal" size="compact" />
       <Text style={styles.title}>No Pigs yet</Text>
       <Text style={styles.body}>Protect some money by creating your first Pig.</Text>
       <View style={styles.buttonWrap}>

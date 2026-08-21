@@ -3,11 +3,19 @@ import { AccessibilityInfo, Animated, StyleSheet, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
 
-type ProgressBarProps = { color: string; progress: number };
+type ProgressBarProps = {
+  color: string;
+  progress: number;
+  showMilestones?: boolean;
+};
 
-export function ProgressBar({ color, progress }: ProgressBarProps) {
+const MILESTONE_MARKERS = [0.25, 0.5, 0.75] as const;
+
+export function ProgressBar({ color, progress, showMilestones = false }: ProgressBarProps) {
   const animatedProgress = useRef(new Animated.Value(0)).current;
-  const clampedProgress = Math.min(Math.max(progress, 0), 1);
+  const clampedProgress = Number.isFinite(progress)
+    ? Math.min(Math.max(progress, 0), 1)
+    : 0;
 
   useEffect(() => {
     let isMounted = true;
@@ -47,6 +55,12 @@ export function ProgressBar({ color, progress }: ProgressBarProps) {
       style={styles.track}
     >
       <Animated.View style={[styles.fill, { backgroundColor: color, width }]} />
+      {showMilestones ? MILESTONE_MARKERS.map((milestone) => (
+        <View
+          key={milestone}
+          style={[styles.milestone, { left: `${milestone * 100}%` as `${number}%` }]}
+        />
+      )) : null}
     </View>
   );
 }
@@ -54,4 +68,5 @@ export function ProgressBar({ color, progress }: ProgressBarProps) {
 const styles = StyleSheet.create({
   track: { backgroundColor: colors.progressTrack, borderRadius: 999, height: 7, overflow: 'hidden' },
   fill: { borderRadius: 999, height: '100%' },
+  milestone: { backgroundColor: colors.white, height: '100%', marginLeft: -1, opacity: 0.82, position: 'absolute', width: 2 },
 });

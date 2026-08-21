@@ -2,51 +2,80 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ProgressBar } from '@/components/ProgressBar';
-import { formatPigDate, PigTimeline } from '@/domain/pigs';
+import { PigProgression } from '@/domain/pigProgress';
+import { formatPigDate } from '@/domain/pigs';
 import { Pig } from '@/models/pig';
+import { getPigProgressVisuals } from '@/presentation/pigProgress';
 import { colors } from '@/theme/colors';
 import { fontSizes, radii, spacing } from '@/theme/spacing';
 
 type PigCommitmentCardProps = {
   pig: Pig;
-  timeline: PigTimeline;
+  progression: PigProgression;
 };
 
-export function PigCommitmentCard({ pig, timeline }: PigCommitmentCardProps) {
-  const active = pig.status === 'locked';
-  const completed = pig.status === 'completed';
-  const progressColor = completed ? colors.completed : pig.status === 'broken' ? colors.broken : colors.primary;
+export function PigCommitmentCard({ pig, progression }: PigCommitmentCardProps) {
+  const completed = progression.visualState === 'completed';
+  const broken = progression.visualState === 'broken';
+  const active = !completed && !broken;
+  const visual = getPigProgressVisuals(progression.visualState);
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.eyebrow}>COMMITMENT PROGRESS</Text>
-          <Text style={styles.headline}>
-            {active ? timeline.daysRemaining : timeline.percentageCompleted}%
-          </Text>
-          <Text style={styles.headlineLabel}>
-            {active
-              ? timeline.daysRemaining === 1 ? 'day remaining' : 'days remaining'
-              : completed ? 'complete' : 'completed before ending'}
+        <Text style={styles.eyebrow}>COMMITMENT PROGRESS</Text>
+        <Text style={styles.headline}>
+          {active
+            ? progression.countdown
+            : completed
+              ? 'Commitment complete'
+              : 'Commitment ended'}
+        </Text>
+        <View style={[styles.stageRow, { backgroundColor: visual.surface }]}>
+          <Ionicons color={visual.accent} name={visual.icon} size={15} />
+          <Text style={[styles.stageText, { color: visual.accent }]}>
+            {progression.stageLabel}
           </Text>
         </View>
-        <View style={styles.percentBadge}>
-          <Text style={styles.percentValue}>{timeline.percentageCompleted}%</Text>
-        </View>
+        <Text style={styles.headlineLabel}>
+          {active
+            ? `${progression.percentage}% of the way there`
+            : completed
+              ? 'Your protected money is available again.'
+              : `${progression.percentage}% completed before ending.`}
+        </Text>
       </View>
 
-      <ProgressBar color={progressColor} progress={timeline.progress} />
+      <ProgressBar
+        color={visual.accent}
+        progress={progression.progress}
+        showMilestones={!broken}
+      />
+
+      {active && progression.milestone ? (
+        <View style={[styles.milestoneCard, { backgroundColor: visual.surface }]}>
+          <View style={[styles.milestoneIcon, { backgroundColor: colors.surface }]}>
+            <Ionicons color={visual.accent} name="flag-outline" size={17} />
+          </View>
+          <View style={styles.milestoneCopy}>
+            <Text style={[styles.milestoneLabel, { color: visual.accent }]}>MILESTONE</Text>
+            <Text style={styles.milestoneText}>{progression.milestone.label}</Text>
+          </View>
+          <Text style={[styles.milestonePercent, { color: visual.accent }]}>
+            {progression.milestone.threshold}%
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.dates}>
-        <DateStat icon="calendar-outline" label="Started" value={formatPigDate(pig.createdAt)} />
+        <DateStat color={visual.accent} icon="calendar-outline" label="Started" value={formatPigDate(pig.createdAt)} />
         <View style={styles.divider} />
-        <DateStat icon="lock-open-outline" label="Unlock date" value={formatPigDate(pig.unlockDate)} />
+        <DateStat color={visual.accent} icon="lock-open-outline" label="Unlock date" value={formatPigDate(pig.unlockDate)} />
       </View>
 
       {pig.closedAt ? (
         <View style={styles.closedRow}>
-          <Ionicons color={progressColor} name={completed ? 'checkmark-circle' : 'flag'} size={17} />
+          <Ionicons color={visual.accent} name={completed ? 'checkmark-circle' : 'flag'} size={17} />
           <Text style={styles.closedText}>
             {completed ? 'Completed' : 'Ended'} {formatPigDate(pig.closedAt)}
           </Text>
@@ -57,15 +86,16 @@ export function PigCommitmentCard({ pig, timeline }: PigCommitmentCardProps) {
 }
 
 type DateStatProps = {
+  color: string;
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
 };
 
-function DateStat({ icon, label, value }: DateStatProps) {
+function DateStat({ color, icon, label, value }: DateStatProps) {
   return (
     <View style={styles.dateStat}>
-      <Ionicons color={colors.primary} name={icon} size={17} />
+      <Ionicons color={color} name={icon} size={17} />
       <View style={styles.dateCopy}>
         <Text style={styles.dateLabel}>{label}</Text>
         <Text adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={styles.dateValue}>
@@ -78,12 +108,18 @@ function DateStat({ icon, label, value }: DateStatProps) {
 
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, marginTop: spacing.lg, padding: spacing.lg },
-  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
+  header: { marginBottom: spacing.md },
   eyebrow: { color: colors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.9 },
-  headline: { color: colors.ink, fontSize: 31, fontWeight: '900', letterSpacing: -0.8, marginTop: spacing.xs },
-  headlineLabel: { color: colors.muted, fontSize: fontSizes.caption, marginTop: 1 },
-  percentBadge: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 15, height: 52, justifyContent: 'center', width: 62 },
-  percentValue: { color: colors.primary, fontSize: 16, fontWeight: '900' },
+  headline: { color: colors.ink, fontSize: 27, fontWeight: '900', letterSpacing: -0.65, lineHeight: 32, marginTop: spacing.xs },
+  headlineLabel: { color: colors.muted, fontSize: fontSizes.caption, marginTop: spacing.sm },
+  stageRow: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: radii.pill, flexDirection: 'row', gap: 6, marginTop: spacing.sm, paddingHorizontal: 10, paddingVertical: 6 },
+  stageText: { fontSize: fontSizes.caption, fontWeight: '900' },
+  milestoneCard: { alignItems: 'center', borderRadius: radii.md, flexDirection: 'row', gap: spacing.smd, marginTop: spacing.md, padding: spacing.smd },
+  milestoneIcon: { alignItems: 'center', borderRadius: 12, height: 38, justifyContent: 'center', width: 38 },
+  milestoneCopy: { flex: 1, minWidth: 0 },
+  milestoneLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  milestoneText: { color: colors.ink, fontSize: fontSizes.secondary, fontWeight: '800', marginTop: 2 },
+  milestonePercent: { fontSize: fontSizes.secondary, fontWeight: '900' },
   dates: { flexDirection: 'row', marginTop: spacing.lg },
   dateStat: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm, minWidth: 0 },
   dateCopy: { flex: 1, minWidth: 0 },

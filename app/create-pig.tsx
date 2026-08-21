@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DatePickerField, getTomorrowIsoDate } from '@/components/DatePickerField';
-import { PigShowcase } from '@/components/PigShowcase';
+import { PigAvatar } from '@/components/PigAvatar';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { formatPigDate } from '@/domain/pigs';
@@ -54,7 +54,7 @@ export default function CreatePigScreen() {
   return (
     <Screen>
       <View style={styles.hero}>
-        <PigShowcase accessibilityLabel="A cheerful Piggi ready for a new goal" size="compact" />
+        <PigAvatar accessibilityLabel="A cheerful Piggi ready for a new goal" size="compact" />
         <Text style={styles.title}>Create a new Pig</Text>
         <Text style={styles.subtitle}>One amount. One date. One promise to yourself.</Text>
       </View>

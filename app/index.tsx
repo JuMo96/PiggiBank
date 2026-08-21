@@ -23,12 +23,13 @@ export default function HomeScreen() {
     clearReleaseNotice,
     isHydrated,
     lastCreatedPigId,
+    progressionDate,
     releaseNotice,
   } = usePiggi();
   const createdPig = activePigs.find((pig) => pig.id === lastCreatedPigId);
   const releasedPig = pastPigs.find((pig) => pig.id === releaseNotice?.pigId);
-  const headerCopy = getHomeHeaderCopy();
-  const savingsSummary = getHomeSavingsSummary(activePigs);
+  const headerCopy = getHomeHeaderCopy(progressionDate);
+  const savingsSummary = getHomeSavingsSummary(activePigs, progressionDate);
 
   if (!isHydrated) {
     return (
@@ -105,6 +106,7 @@ export default function HomeScreen() {
           <View style={styles.list}>
             {activePigs.map((pig) => (
               <PigCard
+                currentDate={progressionDate}
                 key={pig.id}
                 pig={pig}
                 onPress={() => router.push({ pathname: '/pig/[id]', params: { id: pig.id } })}

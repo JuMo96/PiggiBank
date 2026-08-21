@@ -2,38 +2,50 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
-import { PigShowcase } from '@/components/PigShowcase';
+import { PigAvatar } from '@/components/PigAvatar';
 import { ProgressBar } from '@/components/ProgressBar';
-import { formatPigDate, getPigTimeline } from '@/domain/pigs';
+import { getPigProgression } from '@/domain/pigProgress';
+import { formatPigDate } from '@/domain/pigs';
 import { formatCurrency } from '@/domain/savings';
 import { Pig } from '@/models/pig';
+import { getPigProgressVisuals } from '@/presentation/pigProgress';
 import { colors } from '@/theme/colors';
 import { fontSizes, radii, spacing } from '@/theme/spacing';
 
-type PigCardProps = { onPress: () => void; pig: Pig };
+type PigCardProps = {
+  currentDate: Date;
+  onPress: () => void;
+  pig: Pig;
+};
 
-export function PigCard({ onPress, pig }: PigCardProps) {
-  const timeline = getPigTimeline(pig);
+export function PigCard({ currentDate, onPress, pig }: PigCardProps) {
+  const progression = getPigProgression(pig, currentDate);
+  const visual = getPigProgressVisuals(progression.visualState);
 
   return (
     <AnimatedEntrance>
       <Pressable
         accessibilityHint="Opens progress and Pig actions"
-        accessibilityLabel={`${pig.name}, ${formatCurrency(pig.protectedAmount)} protected, ${timeline.daysRemaining} days remaining`}
+        accessibilityLabel={`${pig.name}, ${formatCurrency(pig.protectedAmount)} protected, ${progression.stageLabel}, ${progression.countdown}, ${progression.percentage}% complete`}
         accessibilityRole="button"
         onPress={onPress}
         style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       >
         <View style={styles.topRow}>
-          <PigShowcase
-            accessibilityLabel={`${pig.name} piggy bank`}
+          <PigAvatar
+            accessible={false}
             size="compact"
+            stage={progression.stage}
             status={pig.status}
+            theme={pig.icon}
+            visualState={progression.visualState}
           />
           <View style={styles.content}>
-            <View style={styles.statusBadge}>
-              <Ionicons color={colors.primary} name="lock-closed" size={12} />
-              <Text style={styles.statusText}>PROTECTED</Text>
+            <View style={[styles.statusBadge, { backgroundColor: visual.surface }]}>
+              <Ionicons color={visual.accent} name={visual.icon} size={13} />
+              <Text style={[styles.statusText, { color: visual.accent }]}>
+                {progression.stageLabel}
+              </Text>
             </View>
             <Text numberOfLines={2} style={styles.name}>{pig.name}</Text>
             <Text adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={styles.amount}>
@@ -44,12 +56,10 @@ export function PigCard({ onPress, pig }: PigCardProps) {
         </View>
 
         <View style={styles.progressHeader}>
-          <Text style={styles.daysLeft}>
-            {timeline.daysRemaining} {timeline.daysRemaining === 1 ? 'day' : 'days'} left
-          </Text>
-          <Text style={styles.percent}>{timeline.percentageCompleted}%</Text>
+          <Text style={styles.daysLeft}>{progression.countdown}</Text>
+          <Text style={styles.percent}>{progression.percentage}%</Text>
         </View>
-        <ProgressBar color={colors.primary} progress={timeline.progress} />
+        <ProgressBar color={visual.accent} progress={progression.progress} />
         <View style={styles.footer}>
           <Text numberOfLines={1} style={styles.unlockDate}>Opens {formatPigDate(pig.unlockDate)}</Text>
           <View style={styles.openHint}>
@@ -76,10 +86,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   pressed: { opacity: 0.88, transform: [{ scale: 0.992 }] },
-  topRow: { alignItems: 'center', flexDirection: 'row', marginLeft: -8 },
+  topRow: { alignItems: 'center', flexDirection: 'row' },
   content: { flex: 1, marginLeft: spacing.smd, minWidth: 0 },
   statusBadge: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.primarySoft, borderRadius: radii.pill, flexDirection: 'row', gap: 5, paddingHorizontal: 9, paddingVertical: 5 },
-  statusText: { color: colors.primary, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  statusText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.25 },
   name: { color: colors.ink, fontSize: fontSizes.cardTitle, fontWeight: '800', letterSpacing: -0.25, lineHeight: 23, marginTop: spacing.sm },
   amount: { color: colors.ink, fontSize: 25, fontWeight: '900', letterSpacing: -0.65, marginTop: spacing.sm },
   amountLabel: { color: colors.muted, fontSize: fontSizes.caption, marginTop: 1 },

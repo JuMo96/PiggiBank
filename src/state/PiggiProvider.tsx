@@ -27,6 +27,7 @@ type PiggiContextValue = {
   clearReleaseNotice: () => void;
   getPigById: (id: string | undefined) => Pig | undefined;
   lastCreatedPigId: string | null;
+  progressionDate: Date;
   releaseNotice: ReleaseNotice | null;
   isHydrated: boolean;
   pigs: Pig[];
@@ -40,7 +41,9 @@ export function PiggiProvider({ children }: PropsWithChildren) {
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastCreatedPigId, setLastCreatedPigId] = useState<string | null>(null);
   const [releaseNotice, setReleaseNotice] = useState<ReleaseNotice | null>(null);
+  const [progressionDate, setProgressionDate] = useState(() => new Date());
   const pigsRef = useRef(pigs);
+  const progressionDayRef = useRef(getLocalDayKey(progressionDate));
 
   const commitPigs = useCallback((nextPigs: Pig[]) => {
     pigsRef.current = nextPigs;
@@ -86,8 +89,15 @@ export function PiggiProvider({ children }: PropsWithChildren) {
     if (!isHydrated) return undefined;
 
     const completeDuePigs = () => {
+      const now = new Date();
+      const currentDay = getLocalDayKey(now);
+      if (currentDay !== progressionDayRef.current) {
+        progressionDayRef.current = currentDay;
+        setProgressionDate(now);
+      }
+
       const previousPigs = pigsRef.current;
-      const nextPigs = completeMaturePigs(previousPigs);
+      const nextPigs = completeMaturePigs(previousPigs, now);
       if (nextPigs !== previousPigs) {
         const completedPig = findNewlyCompletedPig(previousPigs, nextPigs);
         commitPigs(nextPigs);
@@ -155,6 +165,7 @@ export function PiggiProvider({ children }: PropsWithChildren) {
         isHydrated,
         lastCreatedPigId,
         pigs,
+        progressionDate,
         releaseNotice,
         removePig,
       }}
@@ -162,6 +173,13 @@ export function PiggiProvider({ children }: PropsWithChildren) {
       {children}
     </PiggiContext.Provider>
   );
+}
+
+function getLocalDayKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function findNewlyCompletedPig(previousPigs: Pig[], nextPigs: Pig[]) {

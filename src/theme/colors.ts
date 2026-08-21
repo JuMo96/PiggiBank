@@ -9,6 +9,7 @@ export const colors = {
   dangerSoft: '#FAE9EC',
   gold: '#E6AD3D',
   goldDeep: '#9A671D',
+  goldInk: '#765018',
   goldSoft: '#FFF3D2',
   ink: '#2B2023',
   mint: '#2D7457',

@@ -1,24 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { PigShowcase } from '@/components/PigShowcase';
-import { getPigStatusLabel, PigTimeline } from '@/domain/pigs';
+import { PigAvatar } from '@/components/PigAvatar';
+import { PigProgression } from '@/domain/pigProgress';
 import { formatCurrency } from '@/domain/savings';
 import { Pig } from '@/models/pig';
+import { getPigProgressVisuals } from '@/presentation/pigProgress';
 import { colors } from '@/theme/colors';
 import { fontSizes, radii, spacing } from '@/theme/spacing';
 
 type PigDetailsHeroProps = {
   pig: Pig;
-  timeline: PigTimeline;
+  progression: PigProgression;
 };
 
-export function PigDetailsHero({ pig, timeline }: PigDetailsHeroProps) {
-  const completed = pig.status === 'completed';
-  const broken = pig.status === 'broken';
-  const active = pig.status === 'locked';
-  const icon = active ? 'lock-closed' : completed ? 'trophy' : 'flash';
-  const accentColor = completed ? colors.completed : broken ? colors.broken : colors.primary;
+export function PigDetailsHero({ pig, progression }: PigDetailsHeroProps) {
+  const completed = progression.visualState === 'completed';
+  const broken = progression.visualState === 'broken';
+  const active = !completed && !broken;
+  const visual = getPigProgressVisuals(progression.visualState);
 
   return (
     <View style={[
@@ -26,20 +26,26 @@ export function PigDetailsHero({ pig, timeline }: PigDetailsHeroProps) {
       completed && styles.completedCard,
       broken && styles.brokenCard,
     ]}>
-      <PigShowcase
-        accessibilityLabel={`${pig.name} piggy bank`}
+      <PigAvatar
+        accessibilityLabel={`${pig.name}, ${progression.stageLabel}`}
         size="large"
+        stage={progression.stage}
         status={pig.status}
+        theme={pig.icon}
+        visualState={progression.visualState}
       />
       <View style={styles.copy}>
-        <Text style={[styles.eyebrow, { color: accentColor }]}>
-          {active ? 'YOUR SAVINGS COMMITMENT' : completed ? 'YOU DID IT!' : 'PIG BROKEN'}
+        <Text style={[styles.eyebrow, { color: visual.accent }]}>
+          {active ? 'YOUR PIG IS GROWING' : completed ? 'YOU DID IT!' : 'PIG BROKEN'}
         </Text>
         <Text style={styles.name}>{pig.name}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: `${accentColor}14` }]}>
-          <Ionicons color={accentColor} name={icon} size={13} />
-          <Text style={[styles.statusText, { color: accentColor }]}>{getPigStatusLabel(pig)}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: visual.surface }]}>
+          <Ionicons color={visual.accent} name={visual.icon} size={14} />
+          <Text style={[styles.statusText, { color: visual.accent }]}>
+            {progression.stageLabel}
+          </Text>
         </View>
+        <Text style={styles.personality}>{progression.personality}</Text>
         <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1} style={styles.amount}>
           {formatCurrency(pig.protectedAmount)}
         </Text>
@@ -47,7 +53,7 @@ export function PigDetailsHero({ pig, timeline }: PigDetailsHeroProps) {
           {active
             ? 'protected from everyday spending'
             : completed
-              ? `protected for ${timeline.totalDays} ${timeline.totalDays === 1 ? 'day' : 'days'}`
+              ? `protected for ${progression.totalDays} ${progression.totalDays === 1 ? 'day' : 'days'}`
               : 'returned to Safe to Spend'}
         </Text>
       </View>
@@ -64,6 +70,7 @@ const styles = StyleSheet.create({
   name: { color: colors.ink, fontSize: fontSizes.screenTitle, fontWeight: '900', letterSpacing: -0.9, marginTop: spacing.xs, textAlign: 'center' },
   statusBadge: { alignItems: 'center', borderRadius: radii.pill, flexDirection: 'row', gap: 5, marginTop: spacing.sm, paddingHorizontal: 10, paddingVertical: 6 },
   statusText: { fontSize: fontSizes.caption, fontWeight: '800' },
-  amount: { color: colors.ink, fontSize: 40, fontWeight: '900', letterSpacing: -1.3, marginTop: spacing.md, maxWidth: '100%' },
+  personality: { color: colors.muted, fontSize: fontSizes.secondary, lineHeight: 19, marginTop: spacing.sm, textAlign: 'center' },
+  amount: { color: colors.ink, fontSize: 40, fontWeight: '900', letterSpacing: -1.3, marginTop: spacing.smd, maxWidth: '100%' },
   amountLabel: { color: colors.muted, fontSize: fontSizes.secondary, lineHeight: 19, marginTop: spacing.xs, textAlign: 'center' },
 });

@@ -5,7 +5,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PigCommitmentCard } from '@/components/PigCommitmentCard';
 import { PigDetailsHero } from '@/components/PigDetailsHero';
 import { Screen } from '@/components/Screen';
-import { getPigTimeline } from '@/domain/pigs';
+import { getPigProgression } from '@/domain/pigProgress';
 import { formatCurrency } from '@/domain/savings';
 import { notifyWarning } from '@/services/feedback';
 import { usePiggi } from '@/state/PiggiProvider';
@@ -14,7 +14,7 @@ import { fontSizes, radii, spacing } from '@/theme/spacing';
 
 export default function PigDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { breakPig, getPigById, removePig } = usePiggi();
+  const { breakPig, getPigById, progressionDate, removePig } = usePiggi();
   const pig = getPigById(id);
 
   if (!pig) {
@@ -38,9 +38,9 @@ export default function PigDetailsScreen() {
     );
   }
 
-  const timeline = getPigTimeline(pig);
-  const isActive = pig.status === 'locked';
-  const isCompleted = pig.status === 'completed';
+  const progression = getPigProgression(pig, progressionDate);
+  const isActive = progression.visualState !== 'broken' && progression.visualState !== 'completed';
+  const isCompleted = progression.visualState === 'completed';
 
   const handleBreak = () => {
     Alert.alert(
@@ -82,8 +82,8 @@ export default function PigDetailsScreen() {
 
   return (
     <Screen>
-      <PigDetailsHero pig={pig} timeline={timeline} />
-      <PigCommitmentCard pig={pig} timeline={timeline} />
+      <PigDetailsHero pig={pig} progression={progression} />
+      <PigCommitmentCard pig={pig} progression={progression} />
 
       {isActive ? (
         <View style={styles.breakSection}>
