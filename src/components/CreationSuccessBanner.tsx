@@ -39,7 +39,7 @@ export function CreationSuccessBanner({ onView, pig }: CreationSuccessBannerProp
 }
 
 const styles = StyleSheet.create({
-  banner: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: '#C4DED2', borderRadius: 17, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
+  banner: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: '#F0C8D4', borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   icon: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 14, height: 36, justifyContent: 'center', width: 36 },
   copy: { flex: 1 },
   title: { color: colors.ink, fontSize: 14, fontWeight: '800' },

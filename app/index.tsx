@@ -4,13 +4,14 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { BalanceOverview } from '@/components/BalanceOverview';
 import { CreationSuccessBanner } from '@/components/CreationSuccessBanner';
+import { EmptyPigsState } from '@/components/EmptyPigsState';
 import { PigCard } from '@/components/PigCard';
 import { PigHistoryCard } from '@/components/PigHistoryCard';
-import { PrimaryButton } from '@/components/PrimaryButton';
 import { ReleaseNoticeBanner } from '@/components/ReleaseNoticeBanner';
 import { Screen } from '@/components/Screen';
+import { SectionHeader } from '@/components/SectionHeader';
 import { useSavingsOverview } from '@/hooks/useSavingsOverview';
-import { getHomeHeaderCopy } from '@/presentation/home';
+import { getHomeHeaderCopy, getHomeSavingsSummary } from '@/presentation/home';
 import { usePiggi } from '@/state/PiggiProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -27,24 +28,30 @@ export default function HomeScreen() {
   const createdPig = activePigs.find((pig) => pig.id === lastCreatedPigId);
   const releasedPig = pastPigs.find((pig) => pig.id === releaseNotice?.pigId);
   const headerCopy = getHomeHeaderCopy();
+  const savingsSummary = getHomeSavingsSummary(activePigs);
 
   if (!isHydrated) {
     return (
-      <Screen>
+      <Screen includeTopInset>
         <View style={styles.loadingState}>
           <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>Loading your Pigs…</Text>
+          <Text style={styles.loadingText}>Waking up your Pigs…</Text>
         </View>
       </Screen>
     );
   }
 
   return (
-    <Screen>
+    <Screen includeTopInset>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.eyebrow}>{headerCopy.dateLabel}</Text>
-          <Text style={styles.title}>{headerCopy.greeting}</Text>
+        <View style={styles.brandRow}>
+          <View accessibilityElementsHidden style={styles.brandMark}>
+            <Text style={styles.brandEmoji}>🐷</Text>
+          </View>
+          <View>
+            <Text style={styles.title}>Piggi</Text>
+            <Text style={styles.greeting}>{headerCopy.greeting}</Text>
+          </View>
         </View>
         <Pressable
           accessibilityLabel="Open settings"
@@ -65,8 +72,8 @@ export default function HomeScreen() {
       {createdPig ? (
         <CreationSuccessBanner
           onView={() => {
-              clearCreationNotice();
-              router.push({ pathname: '/pig/[id]', params: { id: createdPig.id } });
+            clearCreationNotice();
+            router.push({ pathname: '/pig/[id]', params: { id: createdPig.id } });
           }}
           pig={createdPig}
         />
@@ -84,10 +91,14 @@ export default function HomeScreen() {
         />
       ) : null}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Active Piggy Banks</Text>
-        <Text style={styles.count}>{activePigs.length} of 1 active</Text>
+      <View style={styles.motivationCard}>
+        <View style={styles.motivationIcon}>
+          <Ionicons color={colors.primary} name="heart" size={18} />
+        </View>
+        <Text style={styles.motivationText}>{savingsSummary}</Text>
       </View>
+
+      <SectionHeader detail={`${activePigs.length} of 1 active`} title="Your Pigs" />
 
       {activePigs.length ? (
         <>
@@ -101,36 +112,17 @@ export default function HomeScreen() {
             ))}
           </View>
           <View style={styles.limitNote}>
-            <Ionicons color={colors.muted} name="information-circle-outline" size={18} />
-            <Text style={styles.limitText}>One active Pig at a time. Open this Pig to view progress or break it early.</Text>
+            <Ionicons color={colors.primary} name="sparkles-outline" size={18} />
+            <Text style={styles.limitText}>One Pig at a time keeps your promise simple and focused.</Text>
           </View>
         </>
       ) : (
-        <View style={styles.emptyState}>
-          <View style={styles.emptySpotlight}>
-            <Ionicons color={colors.primary} name="lock-closed-outline" size={34} />
-          </View>
-          <View style={styles.emptyPedestalTop} />
-          <View style={styles.emptyPedestal}>
-            <Text style={styles.emptyTitle}>Your pedestal is waiting</Text>
-            <Text style={styles.emptyText}>Create one Pig to start protecting mock money.</Text>
-          </View>
-          <View style={styles.createButtonWrap}>
-            <PrimaryButton
-              icon="add"
-              label="Create Pig"
-              onPress={() => router.push('/create-pig')}
-            />
-          </View>
-        </View>
+        <EmptyPigsState onCreate={() => router.push('/create-pig')} />
       )}
 
       {pastPigs.length ? (
         <>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Pig History</Text>
-            <Text style={styles.count}>{pastPigs.length} past</Text>
-          </View>
+          <SectionHeader detail={`${pastPigs.length} past`} title="Past Pigs" />
           <View style={styles.historyList}>
             {pastPigs.map((pig) => (
               <PigHistoryCard
@@ -151,46 +143,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
-  eyebrow: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    marginBottom: 4,
-  },
-  title: { color: colors.ink, fontSize: 30, fontWeight: '800', letterSpacing: -0.8 },
+  brandRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.smd },
+  brandMark: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 17, height: 50, justifyContent: 'center', width: 50 },
+  brandEmoji: { fontSize: 27 },
+  title: { color: colors.ink, fontSize: 29, fontWeight: '900', letterSpacing: -0.9 },
+  greeting: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 1 },
   iconButton: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: colors.surfacePink,
     borderRadius: 16,
-    borderWidth: 1,
     height: 48,
     justifyContent: 'center',
     width: 48,
   },
   pressed: { opacity: 0.65 },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-    marginTop: spacing.xl,
-  },
-  sectionTitle: { color: colors.ink, fontSize: 19, fontWeight: '800' },
-  count: { color: colors.muted, fontSize: 13, fontWeight: '600' },
+  motivationCard: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: spacing.smd, marginTop: spacing.md, padding: spacing.md },
+  motivationIcon: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 13, height: 40, justifyContent: 'center', width: 40 },
+  motivationText: { color: colors.ink, flex: 1, fontSize: 13, lineHeight: 19 },
   list: { gap: spacing.md, marginBottom: spacing.lg },
-  limitNote: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.sm },
+  limitNote: { alignItems: 'flex-start', backgroundColor: colors.surfacePink, borderRadius: 15, flexDirection: 'row', gap: spacing.sm, padding: spacing.smd },
   limitText: { color: colors.muted, flex: 1, fontSize: 12, lineHeight: 18 },
-  emptyState: { alignItems: 'center', backgroundColor: '#ECE6D9', borderColor: '#DED4C1', borderRadius: 28, borderWidth: 1, minHeight: 320, overflow: 'hidden', paddingTop: spacing.xl },
-  emptySpotlight: { alignItems: 'center', backgroundColor: '#F8F0DA', borderRadius: 55, height: 110, justifyContent: 'center', width: 110 },
-  emptyPedestalTop: { backgroundColor: '#E5C56D', borderColor: '#B88C32', borderRadius: 999, borderWidth: 3, height: 28, marginTop: -4, width: '70%' },
-  emptyPedestal: { alignItems: 'center', backgroundColor: colors.ink, marginTop: -8, padding: spacing.lg, paddingTop: spacing.xl, width: '62%' },
-  emptyTitle: { color: colors.white, fontSize: 16, fontWeight: '800', textAlign: 'center' },
-  emptyText: { color: '#C7D0C7', fontSize: 11, lineHeight: 16, marginTop: 5, textAlign: 'center' },
-  createButtonWrap: { marginVertical: spacing.lg, width: '80%' },
   historyList: { gap: spacing.sm },
   loadingState: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 500 },
   loadingText: { color: colors.muted, fontSize: 14, marginTop: spacing.md },

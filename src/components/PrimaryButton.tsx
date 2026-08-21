@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors } from '@/theme/colors';
+import { radii } from '@/theme/spacing';
 
 type PrimaryButtonProps = {
   accessibilityHint?: string;
@@ -50,12 +51,17 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     backgroundColor: colors.primary,
-    borderRadius: 17,
+    borderRadius: radii.md,
     flexDirection: 'row',
     gap: 7,
     justifyContent: 'center',
     minHeight: 56,
     paddingHorizontal: 20,
+    shadowColor: colors.primary,
+    shadowOffset: { height: 5, width: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 9,
+    elevation: 2,
   },
   label: { color: colors.white, fontSize: 16, fontWeight: '800' },
   disabled: { opacity: 0.52 },

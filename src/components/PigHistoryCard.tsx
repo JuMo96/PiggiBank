@@ -5,7 +5,7 @@ import { formatPigDate, getPigStatusLabel } from '@/domain/pigs';
 import { formatCurrency } from '@/domain/savings';
 import { Pig } from '@/models/pig';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { radii, spacing } from '@/theme/spacing';
 
 type PigHistoryCardProps = {
   onPress: () => void;
@@ -19,11 +19,15 @@ export function PigHistoryCard({ onPress, pig }: PigHistoryCardProps) {
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        completed ? styles.completedCard : styles.brokenCard,
+        pressed && styles.pressed,
+      ]}
     >
       <View style={[styles.icon, completed ? styles.completedIcon : styles.brokenIcon]}>
         <Ionicons
-          color={completed ? colors.primary : '#A86445'}
+          color={completed ? colors.completed : colors.broken}
           name={completed ? 'checkmark-circle-outline' : 'hammer-outline'}
           size={22}
         />
@@ -44,15 +48,17 @@ export function PigHistoryCard({ onPress, pig }: PigHistoryCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, padding: 13 },
+  card: { alignItems: 'center', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 72, padding: 13 },
+  completedCard: { backgroundColor: colors.completedSoft, borderColor: '#CCE5D8' },
+  brokenCard: { backgroundColor: colors.brokenSoft, borderColor: '#E8D8D0' },
   pressed: { opacity: 0.7 },
   icon: { alignItems: 'center', borderRadius: 13, height: 44, justifyContent: 'center', width: 44 },
-  completedIcon: { backgroundColor: colors.primarySoft },
-  brokenIcon: { backgroundColor: '#F5E7DE' },
+  completedIcon: { backgroundColor: colors.surface },
+  brokenIcon: { backgroundColor: colors.surface },
   copy: { flex: 1 },
   name: { color: colors.ink, fontSize: 14, fontWeight: '800' },
-  meta: { color: colors.muted, fontSize: 10, marginTop: 4 },
+  meta: { color: colors.muted, fontSize: 11, marginTop: 4 },
   amountWrap: { alignItems: 'flex-end' },
   amount: { color: colors.ink, fontSize: 13, fontWeight: '800' },
-  released: { color: colors.muted, fontSize: 9, marginTop: 2 },
+  released: { color: colors.muted, fontSize: 10, marginTop: 2 },
 });

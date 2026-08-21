@@ -1,13 +1,19 @@
 import { PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Edge, SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
-export function Screen({ children }: PropsWithChildren) {
+type ScreenProps = PropsWithChildren<{
+  includeTopInset?: boolean;
+}>;
+
+export function Screen({ children, includeTopInset = false }: ScreenProps) {
+  const edges: Edge[] = includeTopInset ? ['top', 'bottom'] : ['bottom'];
+
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safeArea}>
+    <SafeAreaView edges={edges} style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardAvoider}
@@ -29,5 +35,5 @@ export function Screen({ children }: PropsWithChildren) {
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   keyboardAvoider: { flex: 1 },
-  content: { flexGrow: 1, padding: spacing.lg, paddingBottom: spacing.xxxl },
+  content: { alignSelf: 'center', flexGrow: 1, maxWidth: 600, padding: spacing.lg, paddingBottom: spacing.xxxl, width: '100%' },
 });
