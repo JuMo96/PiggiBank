@@ -68,7 +68,9 @@ function DateStat({ icon, label, value }: DateStatProps) {
       <Ionicons color={colors.primary} name={icon} size={17} />
       <View style={styles.dateCopy}>
         <Text style={styles.dateLabel}>{label}</Text>
-        <Text numberOfLines={1} style={styles.dateValue}>{value}</Text>
+        <Text adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={styles.dateValue}>
+          {value}
+        </Text>
       </View>
     </View>
   );

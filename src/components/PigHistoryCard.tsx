@@ -17,6 +17,8 @@ export function PigHistoryCard({ onPress, pig }: PigHistoryCardProps) {
 
   return (
     <Pressable
+      accessibilityHint="Opens this Pig’s history details"
+      accessibilityLabel={`${pig.name}, ${getPigStatusLabel(pig)}, ${formatCurrency(pig.protectedAmount)} released`}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
