@@ -1,4 +1,5 @@
 import { getActivePigs, getSavingsSnapshot } from '@/domain/savings';
+import { getPigProgression } from '@/domain/pigProgress';
 import { CreatePigInput, Pig } from '@/models/pig';
 
 export type CreatePigField = 'amount' | 'form' | 'name' | 'unlockDate';
@@ -96,19 +97,13 @@ export function completeMaturePigs(pigs: Pig[], now = new Date()) {
 }
 
 export function getPigTimeline(pig: Pig, now = new Date()): PigTimeline {
-  const today = toLocalIsoDate(now);
-  const referenceDate = pig.closedAt ?? today;
-  const totalDays = Math.max(daysBetween(pig.createdAt, pig.unlockDate), 1);
-  const elapsedDays = Math.min(Math.max(daysBetween(pig.createdAt, referenceDate), 0), totalDays);
-  const progress = pig.status === 'completed' ? 1 : elapsedDays / totalDays;
+  const progression = getPigProgression(pig, now);
 
   return {
-    daysRemaining: pig.status === 'locked'
-      ? Math.max(daysBetween(today, pig.unlockDate), 0)
-      : 0,
-    percentageCompleted: Math.round(progress * 100),
-    progress,
-    totalDays,
+    daysRemaining: progression.daysRemaining,
+    percentageCompleted: progression.percentage,
+    progress: progression.progress,
+    totalDays: progression.totalDays,
   };
 }
 
@@ -149,17 +144,6 @@ function toLocalIsoDate(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-function daysBetween(startIsoDate: string, endIsoDate: string) {
-  const start = isoDateToUtc(startIsoDate);
-  const end = isoDateToUtc(endIsoDate);
-  return Math.round((end.getTime() - start.getTime()) / 86_400_000);
-}
-
-function isoDateToUtc(value: string) {
-  const [year, month, day] = value.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
 }
 
 function roundToCents(value: number) {
