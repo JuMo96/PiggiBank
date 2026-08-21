@@ -8,6 +8,7 @@ import { spacing } from '@/theme/spacing';
 import { notifySelection } from '@/services/feedback';
 
 type DatePickerFieldProps = {
+  hasError?: boolean;
   minimumDate: string;
   onChange: (isoDate: string) => void;
   value: string;
@@ -20,7 +21,7 @@ const DATE_PRESETS = [
   { days: 90, label: '3 months' },
 ] as const;
 
-export function DatePickerField({ minimumDate, onChange, value }: DatePickerFieldProps) {
+export function DatePickerField({ hasError = false, minimumDate, onChange, value }: DatePickerFieldProps) {
   const minimum = fromIsoDate(minimumDate);
   const selected = value ? fromIsoDate(value) : null;
   const [isOpen, setIsOpen] = useState(false);
@@ -51,7 +52,7 @@ export function DatePickerField({ minimumDate, onChange, value }: DatePickerFiel
         accessibilityLabel="Choose unlock date"
         accessibilityRole="button"
         onPress={openCalendar}
-        style={({ pressed }) => [styles.field, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.field, hasError && styles.fieldError, pressed && styles.pressed]}
       >
         <Ionicons color={colors.muted} name="calendar-outline" size={20} />
         <Text style={[styles.fieldValue, !selected && styles.placeholder]}>
@@ -248,13 +249,14 @@ function formatMonth(date: Date) {
 }
 
 const styles = StyleSheet.create({
-  field: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, minHeight: 54, paddingHorizontal: spacing.md },
+  field: { alignItems: 'center', backgroundColor: colors.background, borderColor: colors.border, borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 56, paddingHorizontal: spacing.md },
+  fieldError: { borderColor: colors.danger },
   pressed: { opacity: 0.72 },
   fieldValue: { color: colors.ink, flex: 1, fontSize: 16, fontWeight: '600' },
   placeholder: { color: colors.placeholder, fontWeight: '400' },
   backdrop: { alignItems: 'center', backgroundColor: 'rgba(12, 22, 17, 0.58)', flex: 1, justifyContent: 'flex-end' },
   calendarCard: { backgroundColor: colors.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxWidth: 480, padding: spacing.lg, paddingTop: spacing.sm, width: '100%' },
-  grabber: { alignSelf: 'center', backgroundColor: '#C9C7C0', borderRadius: 999, height: 5, marginBottom: spacing.md, width: 42 },
+  grabber: { alignSelf: 'center', backgroundColor: colors.border, borderRadius: 999, height: 5, marginBottom: spacing.md, width: 42 },
   modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   modalEyebrow: { color: colors.primary, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   modalTitle: { color: colors.ink, fontSize: 24, fontWeight: '800', marginTop: 2 },
@@ -276,7 +278,7 @@ const styles = StyleSheet.create({
   dayPressed: { backgroundColor: colors.primarySoft },
   daySelected: { backgroundColor: colors.primary },
   dayText: { color: colors.ink, fontSize: 14, fontWeight: '700' },
-  dayDisabled: { color: '#C5C5C0' },
+  dayDisabled: { color: colors.placeholder },
   daySelectedText: { color: colors.white },
   calendarFooter: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 13, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: 12 },
   footerText: { color: colors.muted, fontSize: 12 },

@@ -9,6 +9,8 @@ type PigForm = {
   unlockDate: string;
 };
 
+type PigFormErrors = Partial<Record<keyof PigForm | 'form', string>>;
+
 const INITIAL_FORM: PigForm = {
   amount: '',
   name: '',
@@ -18,10 +20,10 @@ const INITIAL_FORM: PigForm = {
 export function useCreatePigForm() {
   const { addPig } = usePiggi();
   const [form, setForm] = useState<PigForm>(INITIAL_FORM);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<PigFormErrors>({});
 
   function setField<Key extends keyof PigForm>(key: Key, value: PigForm[Key]) {
-    setError('');
+    setErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
     setForm((current) => ({ ...current, [key]: value }));
   }
 
@@ -33,12 +35,12 @@ export function useCreatePigForm() {
     });
 
     if (!result.ok) {
-      setError(result.error);
+      setErrors({ [result.field]: result.error });
       return null;
     }
 
     return result.pig;
   }
 
-  return { error, form, setField, submit };
+  return { errors, form, setField, submit };
 }

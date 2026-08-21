@@ -1,9 +1,11 @@
 import { getActivePigs, getSavingsSnapshot } from '@/domain/savings';
 import { CreatePigInput, Pig } from '@/models/pig';
 
+export type CreatePigField = 'amount' | 'form' | 'name' | 'unlockDate';
+
 export type CreatePigResult =
   | { ok: true; pig: Pig }
-  | { error: string; ok: false };
+  | { error: string; field: CreatePigField; ok: false };
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 export const MAX_ACTIVE_PIGS = 1;
@@ -12,6 +14,7 @@ export type PigTimeline = {
   daysRemaining: number;
   percentageCompleted: number;
   progress: number;
+  totalDays: number;
 };
 
 export function createPig(
@@ -26,30 +29,31 @@ export function createPig(
   const safeToSpend = getSavingsSnapshot(bankBalance, currentPigs).safeToSpend;
 
   if (getActivePigs(currentPigs).length >= MAX_ACTIVE_PIGS) {
-    return { error: 'You can have one active Pig right now.', ok: false };
+    return { error: 'You can have one active Pig right now.', field: 'form', ok: false };
   }
 
   if (!name) {
-    return { error: 'Give your Pig a name.', ok: false };
+    return { error: 'Enter a Pig name.', field: 'name', ok: false };
   }
 
   if (!Number.isFinite(protectedAmount) || protectedAmount <= 0) {
-    return { error: 'Enter an amount greater than zero.', ok: false };
+    return { error: 'Enter an amount greater than $0.', field: 'amount', ok: false };
   }
 
   if (protectedAmount > safeToSpend) {
     return {
-      error: `This Pig can protect at most ${formatValidationCurrency(safeToSpend)}, your current Safe to Spend balance.`,
+      error: `This amount is higher than your ${formatValidationCurrency(safeToSpend)} Safe to Spend balance.`,
+      field: 'amount',
       ok: false,
     };
   }
 
   if (!isValidIsoDate(input.unlockDate)) {
-    return { error: 'Choose an unlock date from the calendar.', ok: false };
+    return { error: 'Choose a future unlock date.', field: 'unlockDate', ok: false };
   }
 
   if (input.unlockDate <= today) {
-    return { error: 'Choose an unlock date after today.', ok: false };
+    return { error: 'Choose a future unlock date.', field: 'unlockDate', ok: false };
   }
 
   return {
@@ -104,6 +108,7 @@ export function getPigTimeline(pig: Pig, now = new Date()): PigTimeline {
       : 0,
     percentageCompleted: Math.round(progress * 100),
     progress,
+    totalDays,
   };
 }
 

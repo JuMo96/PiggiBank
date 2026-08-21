@@ -23,7 +23,7 @@ export function ReleaseNoticeBanner({ onDismiss, onView, pig, reason }: ReleaseN
       <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.banner}>
         <View style={styles.icon}>
           <Ionicons
-            color={completed ? colors.primary : '#A86445'}
+            color={completed ? colors.completed : colors.broken}
             name={completed ? 'trophy' : 'hammer'}
             size={18}
           />
@@ -54,7 +54,7 @@ export function ReleaseNoticeBanner({ onDismiss, onView, pig, reason }: ReleaseN
 }
 
 const styles = StyleSheet.create({
-  banner: { alignItems: 'center', backgroundColor: '#F5EFE5', borderColor: '#E2D6C3', borderRadius: 17, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
+  banner: { alignItems: 'center', backgroundColor: colors.goldSoft, borderColor: '#EBD99F', borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   icon: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 14, height: 36, justifyContent: 'center', width: 36 },
   copy: { flex: 1, justifyContent: 'center', minHeight: 44 },
   title: { color: colors.ink, fontSize: 14, fontWeight: '800' },

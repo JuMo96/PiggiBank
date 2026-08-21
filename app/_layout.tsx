@@ -37,10 +37,10 @@ export default function RootLayout() {
               </Pressable>
             ),
             presentation: 'modal',
-            title: 'Create a Pig',
+            title: 'New Pig',
           }}
         />
-        <Stack.Screen name="pig/[id]" options={{ title: 'Pig details' }} />
+        <Stack.Screen name="pig/[id]" options={{ title: 'Your Pig' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       </Stack>
     </PiggiProvider>
@@ -50,10 +50,8 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   closeButton: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: colors.primarySoft,
     borderRadius: 14,
-    borderWidth: 1,
     height: 40,
     justifyContent: 'center',
     width: 40,
