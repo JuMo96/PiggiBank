@@ -3,23 +3,44 @@ import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet } from 'react-native';
 
+import { AuthProvider, useAuth } from '@/state/AuthProvider';
 import { PiggiProvider } from '@/state/PiggiProvider';
 import { colors } from '@/theme/colors';
 
 export default function RootLayout() {
   return (
-    <PiggiProvider>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          contentStyle: { backgroundColor: colors.background },
-          headerBackButtonDisplayMode: 'minimal',
-          headerShadowVisible: false,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.ink,
-          headerTitleStyle: { fontWeight: '700' },
-        }}
-      >
+    <AuthProvider>
+      <PiggiProvider>
+        <StatusBar style="dark" />
+        <RootNavigator />
+      </PiggiProvider>
+    </AuthProvider>
+  );
+}
+
+function RootNavigator() {
+  const { isLoading, session } = useAuth();
+
+  return (
+    <Stack
+      screenOptions={{
+        contentStyle: { backgroundColor: colors.background },
+        headerBackButtonDisplayMode: 'minimal',
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.ink,
+        headerTitleStyle: { fontWeight: '700' },
+      }}
+    >
+      <Stack.Protected guard={isLoading}>
+        <Stack.Screen name="auth-loading" options={{ headerShown: false }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!isLoading && !session}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!isLoading && Boolean(session)}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen
           name="create-pig"
@@ -42,8 +63,8 @@ export default function RootLayout() {
         />
         <Stack.Screen name="pig/[id]" options={{ title: 'Your Pig' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-      </Stack>
-    </PiggiProvider>
+      </Stack.Protected>
+    </Stack>
   );
 }
 
