@@ -27,19 +27,25 @@ export function useCreatePigForm() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function submit(): Pig | null {
-    const result = addPig({
-      name: form.name,
-      protectedAmount: Number(form.amount.replace(/[$,\s]/g, '')),
-      unlockDate: form.unlockDate.trim(),
-    });
+  async function submit(): Promise<Pig | null> {
+    try {
+      const result = await addPig({
+        name: form.name,
+        protectedAmount: Number(form.amount.replace(/[$,\s]/g, '')),
+        unlockDate: form.unlockDate.trim(),
+      });
 
-    if (!result.ok) {
-      setErrors({ [result.field]: result.error });
+      if (!result.ok) {
+        const errorField = 'field' in result ? result.field : 'form';
+        setErrors({ [errorField]: result.error });
+        return null;
+      }
+
+      return result.pig;
+    } catch {
+      setErrors({ form: 'Your Pig could not be saved. Check your connection and try again.' });
       return null;
     }
-
-    return result.pig;
   }
 
   return { errors, form, setField, submit };

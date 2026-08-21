@@ -4,6 +4,7 @@ import {
   mapDomainPigUpdates,
   mapPigRowToDomainPig,
   toDatabaseEventTimestamp,
+  toLocalCalendarDate,
 } from '@/data/pigMapper';
 import {
   assertRepositoryUser,
@@ -112,17 +113,38 @@ async function updatePigStatusForUser(
     preparePigMutation(userId, pigId);
     const eventTimestamp = toDatabaseEventTimestamp(eventTime);
     const statusUpdate = status === 'broken'
-      ? { broken_at: eventTimestamp, completed_at: null, status }
-      : { broken_at: null, completed_at: eventTimestamp, status };
-    const { data, error } = await supabase
+      ? {
+          broken_at: eventTimestamp,
+          broken_on: toLocalCalendarDate(eventTime),
+          completed_at: null,
+          status,
+        }
+      : {
+          broken_at: null,
+          broken_on: null,
+          completed_at: eventTimestamp,
+          status,
+        };
+    const lifecycleUpdate = supabase
       .from('pigs')
       .update(statusUpdate)
       .eq('user_id', userId)
       .eq('id', pigId)
+      .eq('status', 'locked');
+    const guardedUpdate = status === 'completed'
+      ? lifecycleUpdate.lte('unlock_date', toLocalCalendarDate(eventTime))
+      : lifecycleUpdate;
+    const { data, error } = await guardedUpdate
       .select('*')
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
+    if (!data) {
+      throw new RepositoryError(
+        'conflict',
+        'This Pig changed on another device. Refresh and try again.',
+      );
+    }
     return mapPigRowToDomainPig(data);
   } catch (error) {
     throw normalizeRepositoryError(error, 'update', 'Pig');

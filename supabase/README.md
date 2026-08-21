@@ -43,6 +43,11 @@ having count(*) > 1;
 The migration intentionally stops if duplicates exist instead of silently
 deleting or changing a user's commitments. Fresh Task 6 projects are unaffected.
 
+The Safe to Spend invariant migration likewise stops if an existing locked Pig
+lacks its required financial row or locked Pigs already exceed the account's
+demo balance. Reconcile that account deliberately, then rerun the migration;
+Piggi never rewrites balances or commitments during schema deployment.
+
 The anon key is intended for a public client and is safe only in combination
 with RLS. Never put a service-role key in `.env` or the mobile application.
 If **Confirm email** is enabled under Authentication settings, a new user must
@@ -58,6 +63,7 @@ enabled.
 - A signup trigger that atomically creates the profile and demo financial row.
 - A follow-up backfill for Auth users that existed before the schema was applied.
 - A partial unique index that preserves Piggi's one-active-Pig rule across devices.
+- Transaction-safe triggers that preserve the demo Safe to Spend invariant across devices.
 - `updated_at` triggers, ownership indexes, constraints, explicit API grants,
   and separate SELECT/INSERT/UPDATE/DELETE RLS policies on every table.
 
@@ -68,9 +74,11 @@ is not uploaded into a newly authenticated account.
 `pigs.created_at` and `pigs.unlock_date` use PostgreSQL `date` because Piggi's
 progression is a local calendar-day commitment. This avoids a UTC conversion
 changing the day a Pig opens. `broken_at`, `completed_at`, and `updated_at` are
-UTC `timestamptz` event instants. Status constraints require the matching event
-timestamp but intentionally do not compare that instant with a calendar-date
-boundary, which would be unsafe across time zones.
+UTC `timestamptz` event instants. `broken_on` preserves the user's local break
+day separately so a broken Pig's frozen progress does not shift after timezone
+travel. Status constraints require the matching event fields but intentionally
+do not compare an instant with a calendar-date boundary, which would be unsafe
+across zones.
 
 ## Verify two-user isolation
 

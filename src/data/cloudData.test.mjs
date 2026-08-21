@@ -6,11 +6,13 @@ import {
   mapDomainPigToInsert,
   mapPigRowToDomainPig,
   toDatabaseEventTimestamp,
+  toLocalCalendarDate,
 } from './pigMapper.ts';
 import { getSavingsSnapshot } from '../domain/savings.ts';
 
 const baseRow = {
   broken_at: null,
+  broken_on: null,
   completed_at: null,
   created_at: '2026-08-01',
   icon: 'classic',
@@ -35,30 +37,39 @@ test('maps a database Pig into the existing date-only domain model', () => {
   });
 });
 
-test('maps broken and completed database timestamps to the domain closed date', () => {
+test('maps broken timestamps and logical completion dates to the domain closed date', () => {
   const brokenPig = mapPigRowToDomainPig({
     ...baseRow,
     broken_at: '2026-08-15T12:00:00.000Z',
+    broken_on: '2026-08-15',
     status: 'broken',
   });
   const completedPig = mapPigRowToDomainPig({
     ...baseRow,
-    completed_at: '2026-10-01T12:00:00.000Z',
+    completed_at: '2026-10-05T12:00:00.000Z',
     status: 'completed',
+  });
+  const legacyBrokenPig = mapPigRowToDomainPig({
+    ...baseRow,
+    broken_at: '2026-08-15T23:30:00.000Z',
+    status: 'broken',
   });
 
   assert.equal(brokenPig.closedAt, '2026-08-15');
   assert.equal(completedPig.closedAt, '2026-10-01');
+  assert.equal(legacyBrokenPig.closedAt, '2026-08-15');
 });
 
 test('round-trips a date-only close event without a timezone day shift', () => {
   const brokenPig = mapPigRowToDomainPig({
     ...baseRow,
     broken_at: toDatabaseEventTimestamp('2026-08-15'),
+    broken_on: '2026-08-15',
     status: 'broken',
   });
 
   assert.equal(brokenPig.closedAt, '2026-08-15');
+  assert.equal(toLocalCalendarDate(new Date(2026, 7, 15, 23, 30)), '2026-08-15');
 });
 
 test('serializes Pig money as two-decimal database numeric text', () => {
@@ -99,6 +110,7 @@ test('calculates balances from Supabase-loaded Pigs without counting closed Pigs
     mapPigRowToDomainPig({
       ...baseRow,
       broken_at: '2026-07-15T12:00:00.000Z',
+      broken_on: '2026-07-15',
       id: 'broken-pig',
       protected_amount: '500.00',
       status: 'broken',

@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { BalanceOverview } from '@/components/BalanceOverview';
 import { CreationSuccessBanner } from '@/components/CreationSuccessBanner';
 import { EmptyPigsState } from '@/components/EmptyPigsState';
+import { ErrorNotice } from '@/components/ErrorNotice';
 import { PigCard } from '@/components/PigCard';
 import { PigHistoryCard } from '@/components/PigHistoryCard';
 import { ReleaseNoticeBanner } from '@/components/ReleaseNoticeBanner';
@@ -12,18 +13,24 @@ import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
 import { useSavingsOverview } from '@/hooks/useSavingsOverview';
 import { getHomeHeaderCopy, getHomeSavingsSummary } from '@/presentation/home';
+import { useAuth } from '@/state/AuthProvider';
 import { usePiggi } from '@/state/PiggiProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function HomeScreen() {
+  const { session } = useAuth();
   const { activePigs, bankBalance, pastPigs, protectedMoney, safeToSpend } = useSavingsOverview();
   const {
     clearCreationNotice,
     clearReleaseNotice,
+    hasLoadedData,
     isHydrated,
+    isRefreshing,
     lastCreatedPigId,
+    loadError,
     progressionDate,
+    refreshData,
     releaseNotice,
   } = usePiggi();
   const createdPig = activePigs.find((pig) => pig.id === lastCreatedPigId);
@@ -31,19 +38,48 @@ export default function HomeScreen() {
   const headerCopy = getHomeHeaderCopy(progressionDate);
   const savingsSummary = getHomeSavingsSummary(activePigs, progressionDate);
 
-  if (!isHydrated) {
+  if (!isHydrated || (!hasLoadedData && !loadError)) {
     return (
       <Screen includeTopInset>
         <View style={styles.loadingState}>
           <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>Waking up your Pigs…</Text>
+          <Text style={styles.loadingText}>
+            {isRefreshing ? 'Trying your Piggi cloud again…' : 'Waking up your Pigs…'}
+          </Text>
+          {session ? <AccountSettingsButton /> : null}
+        </View>
+      </Screen>
+    );
+  }
+
+  if (loadError && !hasLoadedData) {
+    return (
+      <Screen includeTopInset>
+        <View style={styles.loadErrorState}>
+          <View accessibilityElementsHidden style={styles.loadErrorPig}>
+            <Text style={styles.loadErrorEmoji}>🐷</Text>
+          </View>
+          <Text accessibilityRole="header" style={styles.loadErrorTitle}>Your Pigs are still safe</Text>
+          <Text style={styles.loadErrorText}>
+            Piggi could not reach your account. Check your connection, then try again.
+          </Text>
+          <ErrorNotice
+            message={loadError}
+            onRetry={() => void refreshData()}
+            title="Couldn’t load your Pigs"
+          />
+          <AccountSettingsButton />
         </View>
       </Screen>
     );
   }
 
   return (
-    <Screen includeTopInset>
+    <Screen
+      includeTopInset
+      onRefresh={() => void refreshData()}
+      refreshing={isRefreshing}
+    >
       <View style={styles.header}>
         <View style={styles.brandRow}>
           <View accessibilityElementsHidden style={styles.brandMark}>
@@ -63,6 +99,16 @@ export default function HomeScreen() {
           <Ionicons color={colors.ink} name="settings-outline" size={22} />
         </Pressable>
       </View>
+
+      {loadError ? (
+        <View style={styles.inlineError}>
+          <ErrorNotice
+            message={loadError}
+            onRetry={() => void refreshData()}
+            title="Showing your last loaded Pigs"
+          />
+        </View>
+      ) : null}
 
       <BalanceOverview
         bankBalance={bankBalance}
@@ -140,6 +186,20 @@ export default function HomeScreen() {
   );
 }
 
+function AccountSettingsButton() {
+  return (
+    <Pressable
+      accessibilityHint="Opens account settings where you can sign out"
+      accessibilityRole="button"
+      onPress={() => router.push('/settings')}
+      style={({ pressed }) => [styles.accountButton, pressed && styles.pressed]}
+    >
+      <Ionicons color={colors.primary} name="person-circle-outline" size={20} />
+      <Text style={styles.accountButtonText}>Account & Sign Out</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
@@ -170,4 +230,12 @@ const styles = StyleSheet.create({
   historyList: { gap: spacing.sm },
   loadingState: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 500 },
   loadingText: { color: colors.muted, fontSize: 14, marginTop: spacing.md },
+  accountButton: { alignItems: 'center', alignSelf: 'center', backgroundColor: colors.primarySoft, borderRadius: 16, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', marginTop: spacing.lg, minHeight: 48, paddingHorizontal: spacing.lg },
+  accountButtonText: { color: colors.primary, fontSize: 14, fontWeight: '800' },
+  loadErrorState: { flex: 1, justifyContent: 'center', minHeight: 500 },
+  loadErrorPig: { alignItems: 'center', alignSelf: 'center', backgroundColor: colors.primarySoft, borderRadius: 25, height: 72, justifyContent: 'center', width: 72 },
+  loadErrorEmoji: { fontSize: 39 },
+  loadErrorTitle: { color: colors.ink, fontSize: 24, fontWeight: '900', marginTop: spacing.lg, textAlign: 'center' },
+  loadErrorText: { color: colors.muted, fontSize: 14, lineHeight: 21, marginBottom: spacing.lg, marginTop: spacing.sm, textAlign: 'center' },
+  inlineError: { marginBottom: spacing.md },
 });

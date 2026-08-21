@@ -20,6 +20,8 @@ export default function RootLayout() {
 
 function RootNavigator() {
   const { isLoading, session } = useAuth();
+  const canAccessAppRoutes = isLoading || Boolean(session);
+  const canAccessAuthRoutes = isLoading || !session;
 
   return (
     <Stack
@@ -36,11 +38,11 @@ function RootNavigator() {
         <Stack.Screen name="auth-loading" options={{ headerShown: false }} />
       </Stack.Protected>
 
-      <Stack.Protected guard={!isLoading && !session}>
+      <Stack.Protected guard={canAccessAuthRoutes}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       </Stack.Protected>
 
-      <Stack.Protected guard={!isLoading && Boolean(session)}>
+      <Stack.Protected guard={canAccessAppRoutes}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen
           name="create-pig"

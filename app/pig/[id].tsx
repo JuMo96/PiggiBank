@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ErrorNotice } from '@/components/ErrorNotice';
 import { PigCommitmentCard } from '@/components/PigCommitmentCard';
 import { PigDetailsHero } from '@/components/PigDetailsHero';
 import { Screen } from '@/components/Screen';
@@ -14,18 +16,64 @@ import { fontSizes, radii, spacing } from '@/theme/spacing';
 
 export default function PigDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { breakPig, getPigById, progressionDate, removePig } = usePiggi();
+  const {
+    breakPig,
+    getPigById,
+    hasLoadedData,
+    isHydrated,
+    loadError,
+    progressionDate,
+    refreshData,
+    removePig,
+  } = usePiggi();
+  const mutationStartedRef = useRef(false);
+  const [pendingMutation, setPendingMutation] = useState<'break' | 'remove' | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const pig = getPigById(id);
+
+  if (!isHydrated || (!hasLoadedData && !loadError)) {
+    return (
+      <Screen>
+        <View accessibilityLiveRegion="polite" style={styles.loadingState}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={styles.loadingText}>Finding your Pig…</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (loadError && !hasLoadedData) {
+    return (
+      <Screen>
+        <View style={styles.detailsLoadError}>
+          <ErrorNotice
+            message={loadError}
+            onRetry={() => void refreshData()}
+            title="Couldn’t load this Pig"
+          />
+        </View>
+      </Screen>
+    );
+  }
 
   if (!pig) {
     return (
       <Screen>
         <View style={styles.empty}>
+          {loadError ? (
+            <View style={styles.missingPigError}>
+              <ErrorNotice
+                message={loadError}
+                onRetry={() => void refreshData()}
+                title="Showing older account data"
+              />
+            </View>
+          ) : null}
           <View style={styles.emptyIcon}>
             <Ionicons color={colors.primary} name="search" size={27} />
           </View>
           <Text style={styles.emptyTitle}>Pig not found</Text>
-          <Text style={styles.emptyText}>This Pig may have already been removed from local history.</Text>
+          <Text style={styles.emptyText}>This Pig may have been removed or may not be available in your account.</Text>
           <Pressable
             accessibilityRole="button"
             onPress={() => router.dismissTo('/')}
@@ -42,18 +90,38 @@ export default function PigDetailsScreen() {
   const isActive = progression.visualState !== 'broken' && progression.visualState !== 'completed';
   const isCompleted = progression.visualState === 'completed';
 
+  const performBreak = async () => {
+    if (mutationStartedRef.current) return;
+    mutationStartedRef.current = true;
+    setPendingMutation('break');
+    setMutationError(null);
+
+    try {
+      const result = await breakPig(pig.id);
+      if (!result.ok) {
+        setMutationError(result.error);
+        return;
+      }
+
+      notifyWarning();
+      router.dismissTo('/');
+    } catch {
+      setMutationError('Your Pig could not be broken. Check your connection and try again.');
+    } finally {
+      mutationStartedRef.current = false;
+      setPendingMutation(null);
+    }
+  };
+
   const handleBreak = () => {
+    if (mutationStartedRef.current) return;
     Alert.alert(
       `Break ${pig.name}?`,
-      `You’re ending this Pig before its unlock date.\n\n${formatCurrency(pig.protectedAmount)} will return to Safe to Spend. This is currently simulated. No payment will be charged.`,
+      `You’re ending this Pig before its unlock date.\n\n${formatCurrency(pig.protectedAmount)} will return to Safe to Spend after Piggi saves this change. This is currently simulated. No payment will be charged.`,
       [
         { style: 'cancel', text: 'Cancel' },
         {
-          onPress: () => {
-            notifyWarning();
-            breakPig(pig.id);
-            router.dismissTo('/');
-          },
+          onPress: () => void performBreak(),
           style: 'destructive',
           text: 'Break Pig',
         },
@@ -61,18 +129,38 @@ export default function PigDetailsScreen() {
     );
   };
 
+  const performDelete = async () => {
+    if (mutationStartedRef.current) return;
+    mutationStartedRef.current = true;
+    setPendingMutation('remove');
+    setMutationError(null);
+
+    try {
+      const result = await removePig(pig.id);
+      if (!result.ok) {
+        setMutationError(result.error);
+        return;
+      }
+
+      notifyWarning();
+      router.dismissTo('/');
+    } catch {
+      setMutationError('This Pig could not be removed. Check your connection and try again.');
+    } finally {
+      mutationStartedRef.current = false;
+      setPendingMutation(null);
+    }
+  };
+
   const handleDelete = () => {
+    if (mutationStartedRef.current) return;
     Alert.alert(
       `Remove ${pig.name} from history?`,
-      'This removes the local record. Your Safe to Spend balance will not change.',
+      'This permanently removes the Pig from your saved history. Your Safe to Spend balance will not change.',
       [
         { style: 'cancel', text: 'Keep It' },
         {
-          onPress: () => {
-            notifyWarning();
-            removePig(pig.id);
-            router.dismissTo('/');
-          },
+          onPress: () => void performDelete(),
           style: 'destructive',
           text: 'Remove',
         },
@@ -82,8 +170,23 @@ export default function PigDetailsScreen() {
 
   return (
     <Screen>
+      {loadError ? (
+        <View style={styles.staleDataNotice}>
+          <ErrorNotice
+            message={loadError}
+            onRetry={() => void refreshData()}
+            title="This Pig may be out of date"
+          />
+        </View>
+      ) : null}
       <PigDetailsHero pig={pig} progression={progression} />
       <PigCommitmentCard pig={pig} progression={progression} />
+
+      {mutationError ? (
+        <View style={styles.mutationError}>
+          <ErrorNotice message={mutationError} title="Change not saved" />
+        </View>
+      ) : null}
 
       {isActive ? (
         <View style={styles.breakSection}>
@@ -101,10 +204,21 @@ export default function PigDetailsScreen() {
           <Pressable
             accessibilityHint="Requires confirmation before ending this Pig"
             accessibilityRole="button"
+            accessibilityState={{ busy: pendingMutation === 'break', disabled: pendingMutation !== null }}
+            disabled={pendingMutation !== null}
             onPress={handleBreak}
-            style={({ pressed }) => [styles.breakButton, pressed && styles.breakPressed]}
+            style={({ pressed }) => [
+              styles.breakButton,
+              pendingMutation !== null && styles.buttonDisabled,
+              pressed && styles.breakPressed,
+            ]}
           >
-            <Text style={styles.breakButtonText}>Break Pig Early</Text>
+            {pendingMutation === 'break' ? (
+              <ActivityIndicator color={colors.danger} size="small" />
+            ) : null}
+            <Text style={styles.breakButtonText}>
+              {pendingMutation === 'break' ? 'Breaking Pig…' : 'Break Pig Early'}
+            </Text>
           </Pressable>
           <Text style={styles.simulatedNote}>Simulated only. No payment will be charged.</Text>
         </View>
@@ -127,18 +241,30 @@ export default function PigDetailsScreen() {
               </Text>
               <Text style={styles.outcomeText}>
                 {isCompleted
-                  ? 'This win is saved in your Pig history.'
+                  ? 'This win is part of your Piggi history.'
                   : 'No guilt—your money is available in Safe to Spend again.'}
               </Text>
             </View>
           </View>
           <Pressable
             accessibilityRole="button"
+            accessibilityState={{ busy: pendingMutation === 'remove', disabled: pendingMutation !== null }}
+            disabled={pendingMutation !== null}
             onPress={handleDelete}
-            style={({ pressed }) => [styles.historyButton, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.historyButton,
+              pendingMutation !== null && styles.buttonDisabled,
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons color={colors.muted} name="trash-outline" size={18} />
-            <Text style={styles.historyButtonText}>Remove from history</Text>
+            {pendingMutation === 'remove' ? (
+              <ActivityIndicator color={colors.muted} size="small" />
+            ) : (
+              <Ionicons color={colors.muted} name="trash-outline" size={18} />
+            )}
+            <Text style={styles.historyButtonText}>
+              {pendingMutation === 'remove' ? 'Removing…' : 'Remove from history'}
+            </Text>
           </Pressable>
         </>
       )}
@@ -153,7 +279,7 @@ const styles = StyleSheet.create({
   breakHeadingCopy: { flex: 1 },
   breakTitle: { color: colors.ink, fontSize: fontSizes.body, fontWeight: '800' },
   breakDescription: { color: colors.muted, fontSize: fontSizes.secondary, lineHeight: 19, marginTop: 3 },
-  breakButton: { alignItems: 'center', borderColor: '#E8C5CC', borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', marginTop: spacing.md, minHeight: 52 },
+  breakButton: { alignItems: 'center', borderColor: '#E8C5CC', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', marginTop: spacing.md, minHeight: 52 },
   breakPressed: { backgroundColor: colors.dangerSoft },
   breakButtonText: { color: colors.danger, fontSize: 14, fontWeight: '800' },
   simulatedNote: { color: colors.muted, fontSize: 10, marginTop: spacing.sm, textAlign: 'center' },
@@ -166,6 +292,13 @@ const styles = StyleSheet.create({
   outcomeText: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
   historyButton: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', marginTop: spacing.lg, minHeight: 50 },
   historyButtonText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
+  buttonDisabled: { opacity: 0.58 },
+  mutationError: { marginTop: spacing.lg },
+  loadingState: { alignItems: 'center', justifyContent: 'center', minHeight: 430 },
+  loadingText: { color: colors.muted, fontSize: fontSizes.body, marginTop: spacing.md },
+  detailsLoadError: { flex: 1, justifyContent: 'center', minHeight: 430 },
+  missingPigError: { alignSelf: 'stretch', marginBottom: spacing.lg },
+  staleDataNotice: { marginBottom: spacing.md },
   pressed: { opacity: 0.62 },
   empty: { alignItems: 'center', justifyContent: 'center', minHeight: 430, paddingHorizontal: spacing.lg },
   emptyIcon: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 22, height: 64, justifyContent: 'center', width: 64 },

@@ -13,14 +13,21 @@ export class PigMappingError extends Error {
 
 export function mapPigRowToDomainPig(row: PigRow): Pig {
   const status = row.status;
-  const closedTimestamp = status === 'broken' ? row.broken_at : row.completed_at;
 
   if (!row.id.trim()) throw new PigMappingError('ID');
   if (!row.name.trim()) throw new PigMappingError('name');
   assertIsoDate(row.created_at, 'creation date');
   assertIsoDate(row.unlock_date, 'unlock date');
+  if (status === 'broken') {
+    if (row.broken_on) assertIsoDate(row.broken_on, 'broken date');
+    else if (!row.broken_at) throw new PigMappingError('broken date');
+  }
 
-  const closedAt = closedTimestamp ? timestampToLocalIsoDate(closedTimestamp) : undefined;
+  const closedAt = status === 'completed'
+    ? row.unlock_date
+    : status === 'broken'
+      ? row.broken_on ?? timestampToUtcIsoDate(row.broken_at ?? '')
+      : undefined;
 
   return {
     ...(closedAt ? { closedAt } : {}),
@@ -86,6 +93,31 @@ export function toDatabaseEventTimestamp(value: Date | string) {
   return date.toISOString();
 }
 
+export function toLocalCalendarDate(value: Date | string) {
+  if (typeof value === 'string' && ISO_DATE_PATTERN.test(value)) {
+    assertIsoDate(value, 'event date');
+    return value;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new PigMappingError('event date');
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function timestampToUtcIsoDate(value: string) {
+  const timestamp = new Date(value);
+  if (!Number.isFinite(timestamp.getTime())) throw new PigMappingError('broken date');
+
+  const year = timestamp.getUTCFullYear();
+  const month = String(timestamp.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(timestamp.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function assertPigDates(pig: Pig) {
   assertIsoDate(pig.createdAt, 'creation date');
   assertIsoDate(pig.unlockDate, 'unlock date');
@@ -108,14 +140,4 @@ function assertIsoDate(value: string, fieldName: string) {
   ) {
     throw new PigMappingError(fieldName);
   }
-}
-
-function timestampToLocalIsoDate(value: string) {
-  const timestamp = new Date(value);
-  if (!Number.isFinite(timestamp.getTime())) throw new PigMappingError('closed date');
-
-  const year = timestamp.getFullYear();
-  const month = String(timestamp.getMonth() + 1).padStart(2, '0');
-  const day = String(timestamp.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }

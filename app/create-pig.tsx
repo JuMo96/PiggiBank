@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DatePickerField, getTomorrowIsoDate } from '@/components/DatePickerField';
+import { ErrorNotice } from '@/components/ErrorNotice';
 import { PigAvatar } from '@/components/PigAvatar';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
@@ -12,6 +13,7 @@ import { calculateRemainingSafeToSpend, formatCurrency } from '@/domain/savings'
 import { useCreatePigForm } from '@/hooks/useCreatePigForm';
 import { useSavingsOverview } from '@/hooks/useSavingsOverview';
 import { notifySelection, notifySuccess } from '@/services/feedback';
+import { usePiggi } from '@/state/PiggiProvider';
 import { colors } from '@/theme/colors';
 import { fontSizes, radii, spacing } from '@/theme/spacing';
 
@@ -20,6 +22,7 @@ type FocusedField = 'amount' | 'name' | null;
 export default function CreatePigScreen() {
   const { errors, form, setField, submit } = useCreatePigForm();
   const { safeToSpend } = useSavingsOverview();
+  const { hasLoadedData, isHydrated, loadError, refreshData } = usePiggi();
   const amountInputRef = useRef<TextInput>(null);
   const submissionStartedRef = useRef(false);
   const [focusedField, setFocusedField] = useState<FocusedField>(null);
@@ -30,17 +33,42 @@ export default function CreatePigScreen() {
   const remainingSafeToSpend = calculateRemainingSafeToSpend(safeToSpend, numericAmount);
   const amountPresets = getAmountPresets(safeToSpend);
 
+  if (!isHydrated || (!hasLoadedData && !loadError)) {
+    return (
+      <Screen>
+        <View accessibilityLiveRegion="polite" style={styles.loadingState}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={styles.loadingText}>Checking your Safe to Spend…</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (loadError && !hasLoadedData) {
+    return (
+      <Screen>
+        <View style={styles.loadErrorState}>
+          <ErrorNotice
+            message={loadError}
+            onRetry={() => void refreshData()}
+            title="Couldn’t load your balance"
+          />
+        </View>
+      </Screen>
+    );
+  }
+
   const chooseAmount = (amount: number) => {
     notifySelection();
     setField('amount', String(amount));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (submissionStartedRef.current) return;
     submissionStartedRef.current = true;
     setIsSubmitting(true);
 
-    const pig = submit();
+    const pig = await submit();
     if (!pig) {
       submissionStartedRef.current = false;
       setIsSubmitting(false);
@@ -65,7 +93,21 @@ export default function CreatePigScreen() {
         <Text style={styles.availableValue}>{formatCurrency(safeToSpend)}</Text>
       </View>
 
-      <View style={styles.formCard}>
+      {loadError ? (
+        <View style={styles.staleDataNotice}>
+          <ErrorNotice
+            message={loadError}
+            onRetry={() => void refreshData()}
+            title="Using your last loaded balance"
+          />
+        </View>
+      ) : null}
+
+      <View
+        accessibilityState={{ busy: isSubmitting }}
+        pointerEvents={isSubmitting ? 'none' : 'auto'}
+        style={[styles.formCard, isSubmitting && styles.formCardSubmitting]}
+      >
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>What are you saving for?</Text>
           <TextInput
@@ -121,6 +163,7 @@ export default function CreatePigScreen() {
                   accessibilityLabel={preset.accessibilityLabel}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: isSelected }}
+                  disabled={isSubmitting}
                   key={preset.label}
                   onPress={() => chooseAmount(preset.amount)}
                   style={({ pressed }) => [
@@ -171,7 +214,7 @@ export default function CreatePigScreen() {
         accessibilityHint="Creates this Pig and returns to Your Pigs"
         isLoading={isSubmitting}
         label={isSubmitting ? 'Creating Pig…' : 'Create Pig'}
-        onPress={handleSubmit}
+        onPress={() => void handleSubmit()}
       />
       <Text style={styles.note}>Demo money only. No bank account or payment is connected.</Text>
     </Screen>
@@ -222,6 +265,7 @@ const styles = StyleSheet.create({
   availableLabel: { color: colors.safe, fontSize: fontSizes.caption, fontWeight: '700' },
   availableValue: { color: colors.safe, fontSize: fontSizes.secondary, fontWeight: '900' },
   formCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, padding: spacing.lg },
+  formCardSubmitting: { opacity: 0.72 },
   fieldGroup: { marginBottom: spacing.xl },
   fieldGroupLast: { marginBottom: 0 },
   label: { color: colors.ink, fontSize: fontSizes.body, fontWeight: '800', marginBottom: spacing.sm },
@@ -246,4 +290,8 @@ const styles = StyleSheet.create({
   prominentError: { backgroundColor: colors.dangerSoft, borderRadius: radii.sm, marginBottom: spacing.md, padding: spacing.smd },
   errorText: { color: colors.danger, flex: 1, fontSize: 12, lineHeight: 17 },
   note: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: spacing.smd, textAlign: 'center' },
+  loadingState: { alignItems: 'center', justifyContent: 'center', minHeight: 430 },
+  loadingText: { color: colors.muted, fontSize: fontSizes.body, marginTop: spacing.md },
+  loadErrorState: { flex: 1, justifyContent: 'center', minHeight: 430 },
+  staleDataNotice: { marginBottom: spacing.md },
 });

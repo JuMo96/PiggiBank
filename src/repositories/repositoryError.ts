@@ -1,6 +1,7 @@
 import { SupabaseConfigurationError } from '@/services/supabase';
 
 export type RepositoryErrorCode =
+  | 'conflict'
   | 'create-failed'
   | 'delete-failed'
   | 'invalid-data'
@@ -46,6 +47,32 @@ export function normalizeRepositoryError(
     );
   }
 
+  if (hasDatabaseErrorCode(error, '23505')) {
+    return new RepositoryError(
+      'conflict',
+      operation === 'create' && subject === 'Pig'
+        ? 'You already have an active Pig. Refresh to see it.'
+        : `This ${subject} changed on another device. Refresh and try again.`,
+      error,
+    );
+  }
+
+  if (hasDatabaseErrorMessage(error, 'piggi_safe_to_spend_conflict')) {
+    return new RepositoryError(
+      'conflict',
+      'Your Safe to Spend changed on another device. Refresh and choose a lower amount.',
+      error,
+    );
+  }
+
+  if (hasDatabaseErrorMessage(error, 'piggi_demo_balance_below_protected')) {
+    return new RepositoryError(
+      'conflict',
+      'Your demo balance cannot be lower than your currently protected money.',
+      error,
+    );
+  }
+
   if (looksLikeNetworkError(error)) {
     return new RepositoryError(
       'offline',
@@ -65,6 +92,10 @@ export function getRepositoryErrorMessage(
   return error instanceof RepositoryError ? error.message : fallback;
 }
 
+export function isRepositoryConflict(error: unknown): error is RepositoryError {
+  return error instanceof RepositoryError && error.code === 'conflict';
+}
+
 function looksLikeNetworkError(error: unknown) {
   const message = error instanceof Error
     ? error.message
@@ -73,6 +104,24 @@ function looksLikeNetworkError(error: unknown) {
       : '';
 
   return /fetch|network|offline|connection|timeout/i.test(message);
+}
+
+function hasDatabaseErrorCode(error: unknown, code: string) {
+  return Boolean(
+    error
+    && typeof error === 'object'
+    && 'code' in error
+    && error.code === code,
+  );
+}
+
+function hasDatabaseErrorMessage(error: unknown, expectedMessage: string) {
+  return Boolean(
+    error
+    && typeof error === 'object'
+    && 'message' in error
+    && String(error.message).includes(expectedMessage),
+  );
 }
 
 function getOfflineAction(

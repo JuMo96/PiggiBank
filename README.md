@@ -46,6 +46,13 @@ pnpm test
 pnpm typecheck
 ```
 
+On this Codex Windows machine, the bundled-runtime launcher performs both
+checks without requiring a global Node.js installation:
+
+```powershell
+.\check-piggi.cmd
+```
+
 ## Project structure
 
 - `app/` — Expo Router routes and screen composition

@@ -19,6 +19,7 @@ export type ProfileRow = {
 
 export type PigRow = {
   broken_at: string | null;
+  broken_on: string | null;
   completed_at: string | null;
   created_at: string;
   icon: string | null;
@@ -33,6 +34,7 @@ export type PigRow = {
 
 export type PigInsert = {
   broken_at?: string | null;
+  broken_on?: string | null;
   completed_at?: string | null;
   created_at: string;
   icon?: string | null;
