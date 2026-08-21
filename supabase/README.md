@@ -42,6 +42,7 @@ enabled.
 - `user_financial_state`: one user-owned demo balance, defaulting to `$6,840`.
 - `pigs`: exact decimal commitments, calendar dates, and lifecycle event times.
 - A signup trigger that atomically creates the profile and demo financial row.
+- A follow-up backfill for Auth users that existed before the schema was applied.
 - `updated_at` triggers, ownership indexes, constraints, explicit API grants,
   and separate SELECT/INSERT/UPDATE/DELETE RLS policies on every table.
 
