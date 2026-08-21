@@ -29,6 +29,20 @@ the Dashboard.
 Use `db push` for schema deployment so Supabase's migration history stays in
 sync. Do not recreate or modify these tables with the remote Table Editor.
 
+Before applying the one-active-Pig index to a project that already has cloud
+data, confirm there are no duplicate locked rows:
+
+```sql
+select user_id, count(*)
+from public.pigs
+where status = 'locked'
+group by user_id
+having count(*) > 1;
+```
+
+The migration intentionally stops if duplicates exist instead of silently
+deleting or changing a user's commitments. Fresh Task 6 projects are unaffected.
+
 The anon key is intended for a public client and is safe only in combination
 with RLS. Never put a service-role key in `.env` or the mobile application.
 If **Confirm email** is enabled under Authentication settings, a new user must
@@ -43,6 +57,7 @@ enabled.
 - `pigs`: exact decimal commitments, calendar dates, and lifecycle event times.
 - A signup trigger that atomically creates the profile and demo financial row.
 - A follow-up backfill for Auth users that existed before the schema was applied.
+- A partial unique index that preserves Piggi's one-active-Pig rule across devices.
 - `updated_at` triggers, ownership indexes, constraints, explicit API grants,
   and separate SELECT/INSERT/UPDATE/DELETE RLS policies on every table.
 
