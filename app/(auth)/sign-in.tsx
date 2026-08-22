@@ -1,9 +1,11 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AuthField } from '@/components/auth/AuthField';
+import { AuthMessage } from '@/components/auth/AuthMessage';
 import { AuthScreenShell } from '@/components/auth/AuthScreenShell';
+import { AuthTextLink } from '@/components/auth/AuthTextLink';
 import { ErrorNotice } from '@/components/ErrorNotice';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import {
@@ -17,18 +19,23 @@ import { colors } from '@/theme/colors';
 import { fontSizes, radii, spacing } from '@/theme/spacing';
 
 export default function SignInScreen() {
+  const params = useLocalSearchParams<{ email?: string; notice?: string }>();
   const {
     initializationError,
     isConfigured,
     isLoading,
     retrySessionRestore,
+    resendConfirmation,
     signIn,
   } = useAuth();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<AuthFieldErrors<SignInField>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [canResendConfirmation, setCanResendConfirmation] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
   const passwordRef = useRef<TextInput>(null);
 
   const clearFieldError = (field: SignInField) => {
@@ -54,9 +61,27 @@ export default function SignInScreen() {
 
     if (!result.success) {
       setFormError(result.error);
+      setCanResendConfirmation(result.code === 'email-not-confirmed');
       setIsSubmitting(false);
     }
   };
+
+  const handleResend = async () => {
+    if (isResending) return;
+    setIsResending(true);
+    setResendMessage(null);
+    const result = await resendConfirmation(email);
+    setIsResending(false);
+    setResendMessage(result.success ? 'A new confirmation email is on its way.' : result.error);
+  };
+
+  const notice = params.notice === 'password-updated'
+    ? 'Your password was updated. Sign in with your new password.'
+    : params.notice === 'email-confirmed'
+      ? 'Your email is confirmed. You can sign in now.'
+      : params.notice === 'account-deleted'
+        ? 'Your Piggi account and data were deleted.'
+        : null;
 
   return (
     <AuthScreenShell
@@ -84,6 +109,7 @@ export default function SignInScreen() {
           title={isConfigured ? 'Session check failed' : 'Supabase setup required'}
         />
       ) : null}
+      {notice ? <AuthMessage message={notice} /> : null}
       <AuthField
         autoCapitalize="none"
         autoComplete="email"
@@ -94,6 +120,8 @@ export default function SignInScreen() {
         onChangeText={(value) => {
           setEmail(value);
           clearFieldError('email');
+          setCanResendConfirmation(false);
+          setResendMessage(null);
         }}
         onSubmitEditing={() => passwordRef.current?.focus()}
         placeholder="you@example.com"
@@ -109,6 +137,7 @@ export default function SignInScreen() {
         onChangeText={(value) => {
           setPassword(value);
           clearFieldError('password');
+          setCanResendConfirmation(false);
         }}
         onSubmitEditing={() => void handleSubmit()}
         password
@@ -124,6 +153,28 @@ export default function SignInScreen() {
           <Text style={styles.formErrorText}>{formError}</Text>
         </View>
       ) : null}
+
+      {canResendConfirmation ? (
+        <AuthTextLink
+          disabled={isResending || isSubmitting}
+          label={isResending ? 'Sending confirmation…' : 'Resend confirmation email'}
+          onPress={() => void handleResend()}
+        />
+      ) : null}
+      {resendMessage ? (
+        <AuthMessage
+          message={resendMessage}
+          tone={resendMessage.startsWith('A new') ? 'success' : 'error'}
+        />
+      ) : null}
+
+      <View style={styles.forgotRow}>
+        <AuthTextLink
+          disabled={isSubmitting}
+          label="Forgot password?"
+          onPress={() => router.push({ pathname: '/forgot-password', params: { email } })}
+        />
+      </View>
 
       <PrimaryButton
         accessibilityHint="Signs in to your Piggi account"
@@ -143,4 +194,5 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.55 },
   formError: { backgroundColor: colors.dangerSoft, borderRadius: radii.sm, padding: spacing.smd },
   formErrorText: { color: colors.danger, fontSize: fontSizes.secondary, lineHeight: 19, textAlign: 'center' },
+  forgotRow: { alignItems: 'flex-end', marginTop: -spacing.sm },
 });

@@ -38,6 +38,7 @@ export const supabase = createClient<Database>(clientUrl, clientAnonKey, {
     ...(Platform.OS !== 'web' ? { storage: AsyncStorage } : {}),
     autoRefreshToken: true,
     detectSessionInUrl: false,
+    flowType: 'pkce',
     lock: processLock,
     persistSession: true,
   },

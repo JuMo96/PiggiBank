@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/state/AuthProvider';
+import { getAuthRouteAccess } from '@/domain/authRouting';
 import { PiggiProvider } from '@/state/PiggiProvider';
 import { colors } from '@/theme/colors';
 
@@ -19,9 +20,13 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { isLoading, session } = useAuth();
-  const canAccessAppRoutes = isLoading || Boolean(session);
-  const canAccessAuthRoutes = isLoading || !session;
+  const { authFlow, isLoading, session } = useAuth();
+  const hasActiveAuthFlow = authFlow.kind !== 'idle';
+  const { canAccessAppRoutes, canAccessAuthRoutes } = getAuthRouteAccess(
+    isLoading,
+    Boolean(session),
+    hasActiveAuthFlow,
+  );
 
   return (
     <Stack
@@ -41,6 +46,9 @@ function RootNavigator() {
       <Stack.Protected guard={canAccessAuthRoutes}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       </Stack.Protected>
+
+      <Stack.Screen name="auth/confirm" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/reset-password" options={{ headerShown: false }} />
 
       <Stack.Protected guard={canAccessAppRoutes}>
         <Stack.Screen name="index" options={{ headerShown: false }} />

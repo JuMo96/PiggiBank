@@ -11,12 +11,25 @@ import {
 } from 'react';
 
 import { normalizeEmail } from '@/domain/authValidation';
+import {
+  AuthFailureCode,
+  AuthOperation,
+  getAuthFailureCode,
+  getFriendlyAuthError,
+} from '@/domain/authErrors';
+import { useAuthLinkFlow } from '@/hooks/useAuthLinkFlow';
+import type { AuthFlowState } from '@/hooks/useAuthLinkFlow';
+import {
+  CONFIRM_EMAIL_REDIRECT_URL,
+  RESET_PASSWORD_REDIRECT_URL,
+} from '@/services/authRedirects';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 
 const SUPABASE_CONFIGURATION_ERROR =
   'Piggi needs Supabase configuration before you can sign in.';
 
 type AuthActionFailure = {
+  code: AuthFailureCode;
   error: string;
   success: false;
 };
@@ -34,15 +47,24 @@ export type SignUpResult = AuthActionFailure | (AuthActionSuccess & {
 type SignOutCleanup = () => Promise<void> | void;
 
 type AuthContextValue = {
+  authFlow: AuthFlowState;
+  cancelAuthFlow: () => Promise<void>;
+  clearAuthFlow: () => void;
+  completeConfirmation: () => void;
   initializationError: string | null;
+  hasCheckedInitialAuthLink: boolean;
   isConfigured: boolean;
   isLoading: boolean;
   registerSignOutCleanup: (cleanup: SignOutCleanup) => () => void;
+  requestPasswordReset: (email: string) => Promise<AuthActionResult>;
+  resendConfirmation: (email: string) => Promise<AuthActionResult>;
+  retryAuthFlow: () => Promise<void>;
   retrySessionRestore: () => Promise<void>;
   session: Session | null;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
+  updateRecoveredPassword: (password: string) => Promise<AuthActionResult>;
   user: User | null;
 };
 
@@ -58,6 +80,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const activeUserIdRef = useRef<string | null>(null);
   const pendingCleanupRef = useRef<Promise<void>>(Promise.resolve());
   const isMountedRef = useRef(true);
+  const {
+    authFlow,
+    authFlowRef,
+    clearAuthFlow,
+    hasCheckedInitialUrl,
+    handleAuthEvent,
+    retryAuthFlow,
+  } = useAuthLinkFlow();
 
   const clearUserMemory = useCallback(async () => {
     const callbacks = Array.from(cleanupCallbacksRef.current);
@@ -130,9 +160,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((
-      _event: AuthChangeEvent,
+      event: AuthChangeEvent,
       nextSession: Session | null,
     ) => {
+      handleAuthEvent(event);
       void applySession(nextSession);
     });
 
@@ -142,7 +173,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isMountedRef.current = false;
       subscription.unsubscribe();
     };
-  }, [applySession, restoreSession]);
+  }, [applySession, handleAuthEvent, restoreSession]);
 
   const registerSignOutCleanup = useCallback((cleanup: SignOutCleanup) => {
     cleanupCallbacksRef.current.add(cleanup);
@@ -157,7 +188,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     password: string,
   ): Promise<AuthActionResult> => {
     if (!isSupabaseConfigured) {
-      return { error: SUPABASE_CONFIGURATION_ERROR, success: false };
+      return { code: 'not-configured', error: SUPABASE_CONFIGURATION_ERROR, success: false };
     }
 
     try {
@@ -167,13 +198,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
       });
 
       if (error) {
-        return { error: getFriendlyAuthError(error, 'signIn'), success: false };
+        return makeAuthFailure(error, 'signIn');
       }
 
       await applySession(data.session);
       return { success: true };
     } catch {
       return {
+        code: 'offline',
         error: 'We could not sign you in. Check your connection and try again.',
         success: false,
       };
@@ -185,21 +217,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
     password: string,
   ): Promise<SignUpResult> => {
     if (!isSupabaseConfigured) {
-      return { error: SUPABASE_CONFIGURATION_ERROR, success: false };
+      return { code: 'not-configured', error: SUPABASE_CONFIGURATION_ERROR, success: false };
     }
 
     try {
       const { data, error } = await supabase.auth.signUp({
         email: normalizeEmail(email),
+        options: { emailRedirectTo: CONFIRM_EMAIL_REDIRECT_URL },
         password,
       });
 
       if (error) {
-        return { error: getFriendlyAuthError(error, 'signUp'), success: false };
+        return makeAuthFailure(error, 'signUp');
       }
 
       if (data.user?.identities?.length === 0) {
         return {
+          code: 'unknown',
           error: 'An account already exists with this email.',
           success: false,
         };
@@ -215,28 +249,119 @@ export function AuthProvider({ children }: PropsWithChildren) {
       };
     } catch {
       return {
+        code: 'offline',
         error: 'We could not create your account. Check your connection and try again.',
         success: false,
       };
     }
   }, [applySession]);
 
+  const resendConfirmation = useCallback(async (email: string): Promise<AuthActionResult> => {
+    if (!isSupabaseConfigured) {
+      return { code: 'not-configured', error: SUPABASE_CONFIGURATION_ERROR, success: false };
+    }
+
+    try {
+      const { error } = await supabase.auth.resend({
+        email: normalizeEmail(email),
+        options: { emailRedirectTo: CONFIRM_EMAIL_REDIRECT_URL },
+        type: 'signup',
+      });
+
+      if (error) return makeAuthFailure(error, 'resendConfirmation');
+      return { success: true };
+    } catch {
+      return {
+        code: 'offline',
+        error: 'We could not resend the confirmation email. Check your connection and try again.',
+        success: false,
+      };
+    }
+  }, []);
+
+  const requestPasswordReset = useCallback(async (email: string): Promise<AuthActionResult> => {
+    if (!isSupabaseConfigured) {
+      return { code: 'not-configured', error: SUPABASE_CONFIGURATION_ERROR, success: false };
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizeEmail(email), {
+        redirectTo: RESET_PASSWORD_REDIRECT_URL,
+      });
+
+      if (error) return makeAuthFailure(error, 'requestPasswordReset');
+      return { success: true };
+    } catch {
+      return {
+        code: 'offline',
+        error: 'We could not send a reset link. Check your connection and try again.',
+        success: false,
+      };
+    }
+  }, []);
+
+  const updateRecoveredPassword = useCallback(async (
+    password: string,
+  ): Promise<AuthActionResult> => {
+    if (authFlowRef.current.kind !== 'recovery' || authFlowRef.current.status !== 'ready') {
+      return {
+        code: 'unknown',
+        error: 'Open a valid Piggi password reset link before changing your password.',
+        success: false,
+      };
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) return makeAuthFailure(error, 'updatePassword');
+
+      const { error: globalSignOutError } = await supabase.auth.signOut({ scope: 'global' });
+      if (globalSignOutError) {
+        await supabase.auth.signOut({ scope: 'local' });
+      }
+      await applySession(null);
+      clearAuthFlow();
+      return { success: true };
+    } catch {
+      return {
+        code: 'offline',
+        error: 'We could not update your password. Check your connection and try again.',
+        success: false,
+      };
+    }
+  }, [applySession, authFlowRef, clearAuthFlow]);
+
+  const cancelAuthFlow = useCallback(async () => {
+    const isRecoveryFlow = authFlowRef.current.kind === 'recovery';
+    if (isRecoveryFlow) {
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } finally {
+        await applySession(null);
+      }
+    }
+    clearAuthFlow();
+  }, [applySession, authFlowRef, clearAuthFlow]);
+
+  const completeConfirmation = useCallback(() => clearAuthFlow(), [clearAuthFlow]);
+
   const signOut = useCallback(async (): Promise<AuthActionResult> => {
     if (!isSupabaseConfigured) {
-      return { error: SUPABASE_CONFIGURATION_ERROR, success: false };
+      return { code: 'not-configured', error: SUPABASE_CONFIGURATION_ERROR, success: false };
     }
 
     try {
       const { error } = await supabase.auth.signOut();
 
       if (error) {
-        return { error: getFriendlyAuthError(error, 'signOut'), success: false };
+        return makeAuthFailure(error, 'signOut');
       }
 
       await applySession(null);
       return { success: true };
     } catch {
       return {
+        code: 'offline',
         error: 'We could not sign you out. Check your connection and try again.',
         success: false,
       };
@@ -244,25 +369,43 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [applySession]);
 
   const value = useMemo<AuthContextValue>(() => ({
+    authFlow,
+    cancelAuthFlow,
+    clearAuthFlow,
+    completeConfirmation,
+    hasCheckedInitialAuthLink: hasCheckedInitialUrl,
     initializationError,
     isConfigured: isSupabaseConfigured,
     isLoading,
     registerSignOutCleanup,
+    requestPasswordReset,
+    resendConfirmation,
+    retryAuthFlow,
     retrySessionRestore: restoreSession,
     session,
     signIn,
     signOut,
     signUp,
+    updateRecoveredPassword,
     user: session?.user ?? null,
   }), [
+    authFlow,
+    cancelAuthFlow,
+    clearAuthFlow,
+    completeConfirmation,
+    hasCheckedInitialUrl,
     initializationError,
     isLoading,
     registerSignOutCleanup,
+    requestPasswordReset,
+    resendConfirmation,
     restoreSession,
+    retryAuthFlow,
     session,
     signIn,
     signOut,
     signUp,
+    updateRecoveredPassword,
   ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -278,55 +421,13 @@ export function useAuth(): AuthContextValue {
   return context;
 }
 
-type AuthOperation = 'signIn' | 'signOut' | 'signUp';
-
-function getFriendlyAuthError(error: AuthError, operation: AuthOperation): string {
-  const errorCode = error.code ?? '';
-  const normalizedMessage = error.message.toLowerCase();
-
-  if (errorCode === 'invalid_credentials' || normalizedMessage.includes('invalid login credentials')) {
-    return 'Email or password is incorrect.';
-  }
-
-  if (errorCode === 'email_not_confirmed') {
-    return 'Confirm your email before signing in.';
-  }
-
-  if (errorCode === 'email_address_invalid' || normalizedMessage.includes('invalid email')) {
-    return 'Please enter a valid email address.';
-  }
-
-  if (
-    errorCode === 'weak_password'
-    || normalizedMessage.includes('password should be')
-    || normalizedMessage.includes('password must be')
-  ) {
-    return 'Your password is too short or too easy to guess.';
-  }
-
-  if (
-    errorCode === 'user_already_exists'
-    || normalizedMessage.includes('already registered')
-    || normalizedMessage.includes('already exists')
-  ) {
-    return 'An account already exists with this email.';
-  }
-
-  if (errorCode.includes('rate_limit') || normalizedMessage.includes('rate limit')) {
-    return 'Too many attempts. Please wait a moment and try again.';
-  }
-
-  if (errorCode === 'signup_disabled') {
-    return 'Account creation is not available right now.';
-  }
-
-  if (operation === 'signIn') {
-    return 'Something went wrong while signing in. Please try again.';
-  }
-
-  if (operation === 'signUp') {
-    return 'Something went wrong while creating your account. Please try again.';
-  }
-
-  return 'Something went wrong while signing out. Please try again.';
+function makeAuthFailure(error: AuthError, operation: AuthOperation): AuthActionFailure {
+  return {
+    code: getAuthFailureCode(error),
+    error: getFriendlyAuthError(error, operation),
+    success: false,
+  };
 }
+  requestPasswordReset: (email: string) => Promise<AuthActionResult>;
+  resendConfirmation: (email: string) => Promise<AuthActionResult>;
+  retryAuthFlow: () => Promise<void>;

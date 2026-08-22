@@ -4,6 +4,8 @@ import test from 'node:test';
 import {
   hasAuthFieldErrors,
   normalizeEmail,
+  validateDeleteAccountFields,
+  validateResetPasswordFields,
   validateSignInFields,
   validateSignUpFields,
 } from './authValidation.ts';
@@ -39,4 +41,25 @@ test('valid auth forms return no field errors', () => {
     hasAuthFieldErrors(validateSignUpFields('saver@example.com', 'secret', 'secret')),
     false,
   );
+});
+
+test('reset-password validation requires a matching valid password', () => {
+  assert.deepEqual(validateResetPasswordFields('', ''), {
+    confirmPassword: 'Confirm your new password.',
+    password: 'Enter a new password.',
+  });
+  assert.equal(validateResetPasswordFields('short', 'short').password, 'Use at least 6 characters.');
+  assert.equal(
+    validateResetPasswordFields('long-enough', 'different').confirmPassword,
+    'Passwords do not match.',
+  );
+  assert.deepEqual(validateResetPasswordFields('long-enough', 'long-enough'), {});
+});
+
+test('account deletion validation requires password and exact confirmation phrase', () => {
+  assert.deepEqual(validateDeleteAccountFields('', 'delete'), {
+    confirmation: 'Type DELETE exactly to confirm.',
+    password: 'Enter your current password.',
+  });
+  assert.deepEqual(validateDeleteAccountFields('current-password', 'DELETE'), {});
 });

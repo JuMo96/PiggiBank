@@ -4,17 +4,21 @@ import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AuthField } from '@/components/auth/AuthField';
+import { AuthMessage } from '@/components/auth/AuthMessage';
 import { AuthScreenShell } from '@/components/auth/AuthScreenShell';
+import { AuthTextLink } from '@/components/auth/AuthTextLink';
 import { ErrorNotice } from '@/components/ErrorNotice';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import {
   AuthFieldErrors,
   hasAuthFieldErrors,
   MINIMUM_PASSWORD_LENGTH,
+  normalizeEmail,
   SignUpField,
   validateSignUpFields,
 } from '@/domain/authValidation';
 import { useAuth } from '@/state/AuthProvider';
+import { useResendCooldown } from '@/hooks/useResendCooldown';
 import { colors } from '@/theme/colors';
 import { fontSizes, radii, spacing } from '@/theme/spacing';
 
@@ -24,6 +28,7 @@ export default function SignUpScreen() {
     isConfigured,
     isLoading,
     retrySessionRestore,
+    resendConfirmation,
     signUp,
   } = useAuth();
   const [email, setEmail] = useState('');
@@ -33,6 +38,9 @@ export default function SignUpScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
+  const [resendResult, setResendResult] = useState<{ error?: boolean; message: string } | null>(null);
+  const { isCoolingDown, secondsRemaining, startCooldown } = useResendCooldown();
   const passwordRef = useRef<TextInput>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
 
@@ -64,23 +72,31 @@ export default function SignUpScreen() {
     }
 
     if (result.requiresEmailConfirmation) {
-      setConfirmationEmail(email.trim());
+      setConfirmationEmail(normalizeEmail(email));
+      startCooldown();
       setIsSubmitting(false);
     }
+  };
+
+  const handleResend = async () => {
+    if (!confirmationEmail || isResending || isCoolingDown) return;
+    setIsResending(true);
+    setResendResult(null);
+    const result = await resendConfirmation(confirmationEmail);
+    setIsResending(false);
+    if (!result.success) {
+      setResendResult({ error: true, message: result.error });
+      return;
+    }
+    setResendResult({ message: 'A new confirmation email is on its way.' });
+    startCooldown();
   };
 
   if (confirmationEmail) {
     return (
       <AuthScreenShell
         footer={(
-          <Pressable
-            accessibilityLabel="Return to sign in"
-            accessibilityRole="link"
-            onPress={() => router.replace('./sign-in')}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <Text style={styles.footerLink}>Back to Sign In</Text>
-          </Pressable>
+          <AuthTextLink label="Back to Sign In" onPress={() => router.replace('./sign-in')} />
         )}
         subtitle="Your account is almost ready."
         title="Check your email"
@@ -91,12 +107,17 @@ export default function SignUpScreen() {
           </View>
           <Text style={styles.confirmationTitle}>Confirmation link sent</Text>
           <Text style={styles.confirmationText}>
-            We sent a confirmation link to {confirmationEmail}. Open it, then return here to sign in.
+            We sent a confirmation link to {confirmationEmail}. Open the newest Piggi email to finish.
           </Text>
         </View>
+        {resendResult ? (
+          <AuthMessage message={resendResult.message} tone={resendResult.error ? 'error' : 'success'} />
+        ) : null}
         <PrimaryButton
-          label="Go to Sign In"
-          onPress={() => router.replace('./sign-in')}
+          disabled={isCoolingDown || isResending}
+          isLoading={isResending}
+          label={isCoolingDown ? `Resend in ${secondsRemaining}s` : 'Resend Confirmation Email'}
+          onPress={() => void handleResend()}
         />
       </AuthScreenShell>
     );

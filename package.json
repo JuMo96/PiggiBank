@@ -7,7 +7,7 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "test": "tsx --test src/domain/pigProgress.test.mjs src/domain/authValidation.test.mjs src/data/cloudData.test.mjs src/state/piggiData.test.mjs",
+    "test": "tsx --test src/domain/pigProgress.test.mjs src/domain/authValidation.test.mjs src/domain/authErrors.test.mjs src/domain/authLinks.test.mjs src/domain/authRouting.test.mjs src/data/cloudData.test.mjs src/state/piggiData.test.mjs",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit"
   },

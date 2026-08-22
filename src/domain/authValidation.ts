@@ -4,6 +4,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type SignInField = 'email' | 'password';
 export type SignUpField = SignInField | 'confirmPassword';
+export type ResetPasswordField = 'confirmPassword' | 'password';
+export type DeleteAccountField = 'confirmation' | 'password';
 export type AuthFieldErrors<Field extends string> = Partial<Record<Field, string>>;
 
 export function normalizeEmail(email: string): string {
@@ -48,6 +50,41 @@ export function validateSignUpFields(
     errors.confirmPassword = 'Confirm your password.';
   } else if (password !== confirmPassword) {
     errors.confirmPassword = 'Passwords do not match.';
+  }
+
+  return errors;
+}
+
+export function validateResetPasswordFields(
+  password: string,
+  confirmPassword: string,
+): AuthFieldErrors<ResetPasswordField> {
+  const errors: AuthFieldErrors<ResetPasswordField> = {};
+
+  if (!password) {
+    errors.password = 'Enter a new password.';
+  } else if (password.length < MINIMUM_PASSWORD_LENGTH) {
+    errors.password = `Use at least ${MINIMUM_PASSWORD_LENGTH} characters.`;
+  }
+
+  if (!confirmPassword) {
+    errors.confirmPassword = 'Confirm your new password.';
+  } else if (password !== confirmPassword) {
+    errors.confirmPassword = 'Passwords do not match.';
+  }
+
+  return errors;
+}
+
+export function validateDeleteAccountFields(
+  password: string,
+  confirmation: string,
+): AuthFieldErrors<DeleteAccountField> {
+  const errors: AuthFieldErrors<DeleteAccountField> = {};
+
+  if (!password) errors.password = 'Enter your current password.';
+  if (confirmation !== 'DELETE') {
+    errors.confirmation = 'Type DELETE exactly to confirm.';
   }
 
   return errors;

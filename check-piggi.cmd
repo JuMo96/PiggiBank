@@ -19,7 +19,7 @@ if not exist "%~dp0node_modules\tsx\package.json" (
 
 pushd "%~dp0" || exit /b 1
 
-"%PIGGI_NODE%" --require "%PIGGI_PRELOAD%" --import tsx --test src\domain\pigProgress.test.mjs src\domain\authValidation.test.mjs src\data\cloudData.test.mjs src\state\piggiData.test.mjs
+"%PIGGI_NODE%" --require "%PIGGI_PRELOAD%" --import tsx --test src\domain\pigProgress.test.mjs src\domain\authValidation.test.mjs src\domain\authErrors.test.mjs src\domain\authLinks.test.mjs src\domain\authRouting.test.mjs src\data\cloudData.test.mjs src\state\piggiData.test.mjs
 if errorlevel 1 (
   popd
   exit /b 1
